@@ -3,17 +3,40 @@ pragma solidity 0.4.24;
 import "@aragon/templates-shared/contracts/TokenCache.sol";
 import "@aragon/templates-shared/contracts/BaseTemplate.sol";
 
+import "@1hive/apps-redemptions/contracts/Redemptions.sol";
+import "@1hive/apps-time-lock/contracts/TimeLock.sol";
+import "@1hive/apps-token-request/contracts/TokenRequest.sol";
+
 
 contract DandelionOrg is BaseTemplate, TokenCache {
     string constant private ERROR_EMPTY_HOLDERS = "DANDELION_EMPTY_HOLDERS";
     string constant private ERROR_BAD_HOLDERS_STAKES_LEN = "DANDELION_BAD_HOLDERS_STAKES_LEN";
     string constant private ERROR_BAD_VOTE_SETTINGS = "DANDELION_BAD_VOTE_SETTINGS";
     string constant private ERROR_BAD_PAYROLL_SETTINGS = "DANDELION_BAD_PAYROLL_SETTINGS";
+    string constant private ERROR_MISSING_CACHE = "DANDELION_MISSING_CACHE";
 
     bool constant private TOKEN_TRANSFERABLE = false;
     uint8 constant private TOKEN_DECIMALS = uint8(18);
     uint256 constant private TOKEN_MAX_PER_ACCOUNT = uint256(0);
     uint64 constant private DEFAULT_FINANCE_PERIOD = uint64(30 days);
+
+    bytes32 constant private REDEMPTIONS_APP_ID = apmNamehash("redemptions");
+    bytes32 constant private TOKEN_REQUEST_APP_ID = apmNamehash("token-request");
+    bytes32 constant private TIME_LOCK_APP_ID = apmNamehash("time-lock");
+
+    struct Cache {
+        address dao;
+        address tokenManager;
+        address agentOrVault;
+        address finance;
+        address tokenRequest;
+        address redemptions;
+        address timeLock;
+        address dandelionVoting;
+        bool agentAsVault;
+    }
+
+    mapping (address => Cache) internal cache;
 
     constructor(DAOFactory _daoFactory, ENS _ens, MiniMeTokenFactory _miniMeFactory, IFIFSResolvingRegistrar _aragonID)
         BaseTemplate(_daoFactory, _ens, _miniMeFactory, _aragonID)
@@ -31,24 +54,48 @@ contract DandelionOrg is BaseTemplate, TokenCache {
     * @param _id String with the name for org, will assign `[id].aragonid.eth`
     * @param _holders Array of token holder addresses
     * @param _stakes Array of token stakes for holders (token has 18 decimals, multiply token amount `* 10^18`)
-    * @param _votingSettings Array of [supportRequired, minAcceptanceQuorum, voteDuration] to set up the voting app of the organization
     * @param _financePeriod Initial duration for accounting periods, it can be set to zero in order to use the default of 30 days.
     * @param _useAgentAsVault Boolean to tell whether to use an Agent app as a more advanced form of Vault app
     */
-    function newTokenAndInstance(
+    function newTokenAndBaseInstance(
         string _tokenName,
         string _tokenSymbol,
         string _id,
         address[] _holders,
         uint256[] _stakes,
-        uint64[3] _votingSettings, /* supportRequired, minAcceptanceQuorum, voteDuration */
         uint64 _financePeriod,
         bool _useAgentAsVault
     )
         external
     {
         newToken(_tokenName, _tokenSymbol);
-        newInstance(_id, _holders, _stakes, _votingSettings, _financePeriod, _useAgentAsVault);
+        newBaseInstance(_id, _holders, _stakes, _financePeriod, _useAgentAsVault);
+    }
+
+    function installDandelionApps(
+        string _id,
+        address[] tokenRequestAcceptedDepositTokens,
+        address timeLockToken,
+        uint256[3] timeLockSettings
+
+    )
+        external
+    {
+        _ensureBaseAppsCache();
+        Kernel dao = _popDaoCache();
+        ACL acl = ACL(dao.acl());
+        bool agentAsVault = _popAgentAsVaultCache();
+        (,,Finance finance) = _popBaseAppsCache();
+        (Voting dandelionVoting,,,) = _popDandelionAppsCache();
+
+        _installDandelionApps(dao, tokenRequestAcceptedDepositTokens, timeLockToken, timeLockSettings);
+
+        _setupBasePermissions(acl, agentAsVault);
+        // _setupDandelionPermissions(acl);
+
+        _transferCreatePaymentManagerFromTemplate(acl, finance, dandelionVoting);
+        _transferRootPermissionsFromTemplateAndFinalizeDAO(dao, dandelionVoting);
+        _registerID(_id, address(dao));
     }
 
     /**
@@ -67,28 +114,24 @@ contract DandelionOrg is BaseTemplate, TokenCache {
     * @param _id String with the name for org, will assign `[id].aragonid.eth`
     * @param _holders Array of token holder addresses
     * @param _stakes Array of token stakes for holders (token has 18 decimals, multiply token amount `* 10^18`)
-    * @param _votingSettings Array of [supportRequired, minAcceptanceQuorum, voteDuration] to set up the voting app of the organization
     * @param _financePeriod Initial duration for accounting periods, it can be set to zero in order to use the default of 30 days.
     * @param _useAgentAsVault Boolean to tell whether to use an Agent app as a more advanced form of Vault app
     */
-    function newInstance(
+    function newBaseInstance(
         string memory _id,
         address[] memory _holders,
         uint256[] memory _stakes,
-        uint64[3] memory _votingSettings,
         uint64 _financePeriod,
         bool _useAgentAsVault
     )
         public
     {
         _validateId(_id);
-        _ensureDandelionSettings(_holders, _stakes, _votingSettings);
+        _ensureBaseSettings(_holders, _stakes);
 
         (Kernel dao, ACL acl) = _createDAO();
-        (Finance finance, Voting voting) = _setupApps(dao, acl, _holders, _stakes, _votingSettings, _financePeriod, _useAgentAsVault);
-        _transferCreatePaymentManagerFromTemplate(acl, finance, voting);
-        _transferRootPermissionsFromTemplateAndFinalizeDAO(dao, voting);
-        _registerID(_id, dao);
+        _setupBaseApps(dao, acl, _holders, _stakes, _financePeriod, _useAgentAsVault);
+
     }
 
     /**
@@ -96,17 +139,15 @@ contract DandelionOrg is BaseTemplate, TokenCache {
     * @param _id String with the name for org, will assign `[id].aragonid.eth`
     * @param _holders Array of token holder addresses
     * @param _stakes Array of token stakes for holders (token has 18 decimals, multiply token amount `* 10^18`)
-    * @param _votingSettings Array of [supportRequired, minAcceptanceQuorum, voteDuration] to set up the voting app of the organization
     * @param _financePeriod Initial duration for accounting periods, it can be set to zero in order to use the default of 30 days.
     * @param _useAgentAsVault Boolean to tell whether to use an Agent app as a more advanced form of Vault app
     * @param _payrollSettings Array of [address denominationToken , IFeed priceFeed, uint64 rateExpiryTime, address employeeManager]
              for the payroll app. The `employeeManager` can be set to `0x0` in order to use the voting app as the employee manager.
     */
-    function newInstance(
+    function newBaseInstance(
         string memory _id,
         address[] memory _holders,
         uint256[] memory _stakes,
-        uint64[3] memory _votingSettings,
         uint64 _financePeriod,
         bool _useAgentAsVault,
         uint256[4] memory _payrollSettings
@@ -114,41 +155,52 @@ contract DandelionOrg is BaseTemplate, TokenCache {
         public
     {
         _validateId(_id);
-        _ensureDandelionSettings(_holders, _stakes, _votingSettings, _payrollSettings);
+        _ensureBaseSettings(_holders, _stakes, _payrollSettings);
 
         (Kernel dao, ACL acl) = _createDAO();
-        (Finance finance, Voting voting) = _setupApps(dao, acl, _holders, _stakes, _votingSettings, _financePeriod, _useAgentAsVault);
-        _setupPayrollApp(dao, acl, finance, voting, _payrollSettings);
-        _transferCreatePaymentManagerFromTemplate(acl, finance, voting);
-        _transferRootPermissionsFromTemplateAndFinalizeDAO(dao, voting);
-        _registerID(_id, dao);
+        _setupBaseApps(dao, acl, _holders, _stakes, _financePeriod, _useAgentAsVault);
+
     }
 
-    function _setupApps(
+
+    function _setupBaseApps(
         Kernel _dao,
         ACL _acl,
         address[] memory _holders,
         uint256[] memory _stakes,
-        uint64[3] memory _votingSettings,
         uint64 _financePeriod,
         bool _useAgentAsVault
     )
         internal
-        returns (Finance, Voting)
     {
         MiniMeToken token = _popTokenCache(msg.sender);
         Vault agentOrVault = _useAgentAsVault ? _installDefaultAgentApp(_dao) : _installVaultApp(_dao);
         Finance finance = _installFinanceApp(_dao, agentOrVault, _financePeriod == 0 ? DEFAULT_FINANCE_PERIOD : _financePeriod);
         TokenManager tokenManager = _installTokenManagerApp(_dao, token, TOKEN_TRANSFERABLE, TOKEN_MAX_PER_ACCOUNT);
-        Voting voting = _installVotingApp(_dao, token, _votingSettings);
 
         _mintTokens(_acl, tokenManager, _holders, _stakes);
-        _setupPermissions(_acl, agentOrVault, voting, finance, tokenManager, _useAgentAsVault);
+        _cacheBaseApps(_dao, tokenManager, agentOrVault, finance);
 
-        return (finance, voting);
+    }
+
+    function _installDandelionApps(
+        Kernel _dao,
+        address[] memory tokenRequestAcceptedDepositTokens,
+        address _timeLockToken,
+        uint256[3] memory _timeLockSettings
+    )
+        internal
+    {
+        Redemptions redemptions = _installRedemptionsApp(_dao);
+        TokenRequest tokenRequest = _installTokenRequestApp(_dao, tokenRequestAcceptedDepositTokens);
+        TimeLock timeLock = _installTimeLockApp(_dao, _timeLockToken, _timeLockSettings);
+
+        _cacheDandelionApps(tokenRequest, redemptions, timeLock);
+
     }
 
     function _setupPayrollApp(Kernel _dao, ACL _acl, Finance _finance, Voting _voting, uint256[4] memory _payrollSettings) internal {
+
         (address denominationToken, IFeed priceFeed, uint64 rateExpiryTime, address employeeManager) = _unwrapPayrollSettings(_payrollSettings);
         address manager = employeeManager == address(0) ? _voting : employeeManager;
 
@@ -157,43 +209,174 @@ contract DandelionOrg is BaseTemplate, TokenCache {
         _grantCreatePaymentPermission(_acl, _finance, payroll);
     }
 
-    function _setupPermissions(
+    /* REDEMPTIONS */
+
+    function _installRedemptionsApp(Kernel _dao) internal returns (Redemptions) {
+
+        (TokenManager tokenManager, Vault vault,) = _popBaseAppsCache();
+        Redemptions redemptions = Redemptions(_installNonDefaultApp(_dao, REDEMPTIONS_APP_ID));
+        redemptions.initialize(vault, tokenManager);
+        return redemptions;
+    }
+
+
+    function _createRedemptionsPermissions(
         ACL _acl,
-        Vault _agentOrVault,
-        Voting _voting,
-        Finance _finance,
+        Redemptions _redemptions,
         TokenManager _tokenManager,
+        Voting _voting,
+        Vault _agentOrVault,
+        address _manager
+    )
+        internal
+    {
+
+        _acl.createPermission(_tokenManager, _redemptions, _redemptions.REDEEM_ROLE(), _manager);
+        _acl.createPermission(_voting, _redemptions, _redemptions.ADD_TOKEN_ROLE(), _manager);
+        _acl.createPermission(_voting, _redemptions, _redemptions.REMOVE_TOKEN_ROLE(), _manager);
+
+    }
+
+    /* TOKEN REQUEST */
+
+    function _installTokenRequestApp(Kernel _dao, address[] memory tokenRequestAcceptedDepositTokens) internal returns (TokenRequest) {
+
+        (TokenManager tokenManager, Vault vault,) = _popBaseAppsCache();
+        TokenRequest tokenRequest = TokenRequest(_installNonDefaultApp(_dao, TOKEN_REQUEST_APP_ID));
+        tokenRequest.initialize(tokenManager, vault, tokenRequestAcceptedDepositTokens);
+        return tokenRequest;
+    }
+
+    /* TIME LOCK */
+
+    function _installTimeLockApp(Kernel _dao,  address _timeLockToken, uint256[3] memory _timeLockSettings) internal returns (TimeLock) {
+        return _installTimeLockApp(_dao, _timeLockToken, _timeLockSettings[0], _timeLockSettings[1], _timeLockSettings[2]);
+    }
+
+    function _installTimeLockApp(
+        Kernel _dao,
+        address _timeLockToken,
+        uint256 _lockDuration,
+        uint256 _lockAmount,
+        uint256 _spamPenaltyFactor
+    )
+        internal returns (TimeLock)
+    {
+        TimeLock timeLock = TimeLock(_installNonDefaultApp(_dao, TIME_LOCK_APP_ID));
+        timeLock.initialize(_timeLockToken, _lockDuration, _lockAmount, _spamPenaltyFactor);
+    }
+
+    function _setupBasePermissions(
+        ACL _acl,
         bool _useAgentAsVault
     )
         internal
     {
+
+        (TokenManager tokenManager, Vault agentOrVault, Finance finance) = _popBaseAppsCache();
+        (Voting dandelionVoting,,,) = _popDandelionAppsCache();
+
         if (_useAgentAsVault) {
-            _createAgentPermissions(_acl, Agent(_agentOrVault), _voting, _voting);
+            _createAgentPermissions(_acl, Agent(agentOrVault), dandelionVoting, dandelionVoting);
         }
-        _createVaultPermissions(_acl, _agentOrVault, _finance, _voting);
-        _createFinancePermissions(_acl, _finance, _voting, _voting);
-        _createFinanceCreatePaymentsPermission(_acl, _finance, _voting, address(this));
-        _createEvmScriptsRegistryPermissions(_acl, _voting, _voting);
-        _createVotingPermissions(_acl, _voting, _voting, _tokenManager, _voting);
-        _createTokenManagerPermissions(_acl, _tokenManager, _voting, _voting);
+        _createVaultPermissions(_acl, agentOrVault, finance, dandelionVoting);
+        _createFinancePermissions(_acl, finance, dandelionVoting, dandelionVoting);
+        _createFinanceCreatePaymentsPermission(_acl, finance, dandelionVoting, address(this));
+        _createEvmScriptsRegistryPermissions(_acl, dandelionVoting, dandelionVoting);
+        //TODO change this for createDandelionVotingPermissions
+        _createVotingPermissions(_acl, dandelionVoting, dandelionVoting, tokenManager, dandelionVoting);
+        _createTokenManagerPermissions(_acl, tokenManager, dandelionVoting, dandelionVoting);
+      //  _createRedemptionsPermissions(_acl, _redemptions, _tokenManager, _voting, _agentOrVault, _voting);
     }
 
-    function _ensureDandelionSettings(
+    function _cacheBaseApps(Kernel _dao, TokenManager _tokenManager, Vault _vault, Finance _finance) internal {
+        Cache storage c = cache[msg.sender];
+
+        c.dao = address(_dao);
+        c.tokenManager = address(_tokenManager);
+        c.agentOrVault = address(_vault);
+        c.finance = address(_finance);
+    }
+
+    function _cacheDandelionApps(TokenRequest _tokenRequest, Redemptions _redemptions, TimeLock _timeLock) internal {
+        Cache storage c = cache[msg.sender];
+        require(c.dao != address(0), ERROR_MISSING_CACHE);
+
+        c.tokenRequest = address(_tokenRequest);
+        c.redemptions = address(_redemptions);
+        c.timeLock = address(_timeLock);
+    }
+
+    function _popDaoCache() internal returns (Kernel dao) {
+        Cache storage c = cache[msg.sender];
+        require(c.dao != address(0), ERROR_MISSING_CACHE);
+
+        dao = Kernel(c.dao);
+    }
+
+    function _popAgentAsVaultCache() internal returns (bool agentAsVault) {
+        Cache storage c = cache[msg.sender];
+        require(c.dao != address(0), ERROR_MISSING_CACHE);
+
+        agentAsVault = c.agentAsVault;
+    }
+
+    function _popBaseAppsCache() internal returns (
+        TokenManager tokenManager,
+        Vault vault,
+        Finance finance
+    )
+    {
+        Cache storage c = cache[msg.sender];
+        require(c.dao != address(0), ERROR_MISSING_CACHE);
+
+        tokenManager = TokenManager(c.tokenManager);
+        vault = Vault(c.agentOrVault);
+        finance = Finance(c.finance);
+    }
+
+    function _popDandelionAppsCache() internal returns (
+        /* TODO: CHANGE THIS FOR DANDELIONVOTING */
+        Voting voting,
+        Redemptions redemptions,
+        TokenRequest tokenRequest,
+        TimeLock timeLock
+    )
+    {
+        Cache storage c = cache[msg.sender];
+        require(c.dao != address(0), ERROR_MISSING_CACHE);
+
+        //TODO change fot DandelionVoting type
+        voting = Voting(c.dandelionVoting);
+        redemptions = Redemptions(c.redemptions);
+        tokenRequest = TokenRequest(c.tokenRequest);
+        timeLock = TimeLock(c.timeLock);
+    }
+
+    function _ensureBaseAppsCache() internal {
+        Cache storage c = cache[msg.sender];
+        require(c.tokenManager != address(0), ERROR_MISSING_CACHE);
+        require(c.agentOrVault != address(0), ERROR_MISSING_CACHE);
+        require(c.finance != address(0), ERROR_MISSING_CACHE);
+    }
+
+
+    function _ensureBaseSettings(
         address[] memory _holders,
         uint256[] memory _stakes,
-        uint64[3] memory _votingSettings,
         uint256[4] memory _payrollSettings
     )
         private
         pure
     {
-        _ensureDandelionSettings(_holders, _stakes, _votingSettings);
+        _ensureBaseSettings(_holders, _stakes);
         require(_payrollSettings.length == 4, ERROR_BAD_PAYROLL_SETTINGS);
     }
 
-    function _ensureDandelionSettings(address[] memory _holders, uint256[] memory _stakes, uint64[3] memory _votingSettings) private pure {
+    function _ensureBaseSettings(address[] memory _holders, uint256[] memory _stakes) private pure {
         require(_holders.length > 0, ERROR_EMPTY_HOLDERS);
         require(_holders.length == _stakes.length, ERROR_BAD_HOLDERS_STAKES_LEN);
-        require(_votingSettings.length == 3, ERROR_BAD_VOTE_SETTINGS);
     }
+
+
 }
