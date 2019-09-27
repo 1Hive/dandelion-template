@@ -86,12 +86,12 @@ contract DandelionOrg is BaseTemplate, TokenCache {
         ACL acl = ACL(dao.acl());
         bool agentAsVault = _popAgentAsVaultCache();
         (,,Finance finance) = _popBaseAppsCache();
-        (Voting dandelionVoting,,,) = _popDandelionAppsCache();
 
         _installDandelionApps(dao, tokenRequestAcceptedDepositTokens, timeLockToken, timeLockSettings);
+        (Voting dandelionVoting,,,) = _popDandelionAppsCache();
 
         _setupBasePermissions(acl, agentAsVault);
-        // _setupDandelionPermissions(acl);
+        _setupDandelionPermissions(acl);
 
         _transferCreatePaymentManagerFromTemplate(acl, finance, dandelionVoting);
         _transferRootPermissionsFromTemplateAndFinalizeDAO(dao, dandelionVoting);
@@ -247,6 +247,21 @@ contract DandelionOrg is BaseTemplate, TokenCache {
         return tokenRequest;
     }
 
+    function _createTokenRequestPermissions(
+        ACL _acl,
+        TokenRequest _tokenRequest,
+        TokenManager _tokenManager,
+        Voting _voting,
+        address _manager
+    )
+        internal
+    {
+        _acl.createPermission(_tokenManager, _tokenRequest, _tokenRequest.SET_TOKEN_MANAGER_ROLE(), _voting);
+        _acl.createPermission(_tokenManager, _tokenRequest, _tokenRequest.SET_VAULT_ROLE(), _voting);
+        _acl.createPermission(_voting, _tokenRequest, _tokenRequest.FINALISE_TOKEN_REQUEST_ROLE(), _voting);
+
+    }
+
     /* TIME LOCK */
 
     function _installTimeLockApp(Kernel _dao,  address _timeLockToken, uint256[3] memory _timeLockSettings) internal returns (TimeLock) {
@@ -264,6 +279,19 @@ contract DandelionOrg is BaseTemplate, TokenCache {
     {
         TimeLock timeLock = TimeLock(_installNonDefaultApp(_dao, TIME_LOCK_APP_ID));
         timeLock.initialize(_timeLockToken, _lockDuration, _lockAmount, _spamPenaltyFactor);
+    }
+
+    function _createTimeLockPermissions(
+        ACL _acl,
+        TimeLock _timeLock,
+        TokenManager _tokenManager,
+        Voting _voting,
+        address _manager
+    )
+        internal
+    {
+       // ADD TIME LOCK PERMISSIONS
+
     }
 
     function _setupBasePermissions(
@@ -286,8 +314,19 @@ contract DandelionOrg is BaseTemplate, TokenCache {
         //TODO change this for createDandelionVotingPermissions
         _createVotingPermissions(_acl, dandelionVoting, dandelionVoting, tokenManager, dandelionVoting);
         _createTokenManagerPermissions(_acl, tokenManager, dandelionVoting, dandelionVoting);
-      //  _createRedemptionsPermissions(_acl, _redemptions, _tokenManager, _voting, _agentOrVault, _voting);
     }
+
+    function _setupDandelionPermissions(ACL _acl) internal {
+
+        (TokenManager tokenManager, Vault agentOrVault, Finance finance) = _popBaseAppsCache();
+        (Voting dandelionVoting, Redemptions redemptions, TokenRequest tokenRequest, TimeLock timeLock ) = _popDandelionAppsCache();
+
+        _createRedemptionsPermissions(_acl, redemptions, tokenManager, dandelionVoting, agentOrVault, dandelionVoting);
+        _createTokenRequestPermissions(_acl, tokenRequest, tokenManager, dandelionVoting, dandelionVoting);
+       // _createTimeLockPermissions(_acl, timeLock, tokenManager, dandelionVoting, dandelionVoting);
+
+    }
+
 
     function _cacheBaseApps(Kernel _dao, TokenManager _tokenManager, Vault _vault, Finance _finance) internal {
         Cache storage c = cache[msg.sender];
