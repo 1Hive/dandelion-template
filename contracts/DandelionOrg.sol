@@ -99,6 +99,7 @@ contract DandelionOrg is BaseTemplate, TokenCache {
         _transferCreatePaymentManagerFromTemplate(acl, finance, dandelionVoting);
         _transferRootPermissionsFromTemplateAndFinalizeDAO(dao, dandelionVoting);
         _registerID(_id, address(dao));
+        _clearCache();
     }
 
     /**
@@ -316,9 +317,6 @@ contract DandelionOrg is BaseTemplate, TokenCache {
         _createVaultPermissions(_acl, agentOrVault, finance, dandelionVoting);
         _createFinancePermissions(_acl, finance, dandelionVoting, dandelionVoting);
         _createFinanceCreatePaymentsPermission(_acl, finance, dandelionVoting, address(this));
-        _createEvmScriptsRegistryPermissions(_acl, dandelionVoting, dandelionVoting);
-        //TODO change this for createDandelionVotingPermissions
-        _createVotingPermissions(_acl, dandelionVoting, dandelionVoting, tokenManager, dandelionVoting);
         _createTokenManagerPermissions(_acl, tokenManager, dandelionVoting, dandelionVoting);
     }
 
@@ -329,7 +327,9 @@ contract DandelionOrg is BaseTemplate, TokenCache {
 
         _createRedemptionsPermissions(_acl, redemptions, tokenManager, dandelionVoting, agentOrVault, dandelionVoting);
         _createTokenRequestPermissions(_acl, tokenRequest, tokenManager, dandelionVoting, dandelionVoting);
+        _createEvmScriptsRegistryPermissions(_acl, dandelionVoting, dandelionVoting);
         _createVotingPermissions(_acl, dandelionVoting, dandelionVoting, tokenManager, dandelionVoting);
+
        // _createTimeLockPermissions(_acl, timeLock, tokenManager, dandelionVoting, dandelionVoting);
 
     }
@@ -399,6 +399,22 @@ contract DandelionOrg is BaseTemplate, TokenCache {
         tokenRequest = TokenRequest(c.tokenRequest);
         timeLock = TimeLock(c.timeLock);
     }
+
+     function _clearCache() internal {
+        Cache storage c = cache[msg.sender];
+        require(c.dao != address(0), ERROR_MISSING_CACHE);
+
+        delete c.dao;
+        delete c.tokenManager;
+        delete c.agentOrVault;
+        delete c.finance;
+        delete c.tokenRequest;
+        delete c.redemptions;
+        delete c.timeLock;
+        delete c.dandelionVoting;
+        delete c.agentAsVault;
+    }
+
 
     function _ensureBaseAppsCache() internal {
         Cache storage c = cache[msg.sender];
