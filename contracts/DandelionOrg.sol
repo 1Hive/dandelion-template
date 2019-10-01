@@ -1,6 +1,5 @@
 pragma solidity 0.4.24;
 
-import "@aragon/templates-shared/contracts/TokenCache.sol";
 import "@aragon/templates-shared/contracts/BaseTemplate.sol";
 
 import "@1hive/apps-redemptions/contracts/Redemptions.sol";
@@ -8,12 +7,13 @@ import "@1hive/apps-time-lock/contracts/TimeLock.sol";
 import "@1hive/apps-token-request/contracts/TokenRequest.sol";
 
 
-contract DandelionOrg is BaseTemplate, TokenCache {
+contract DandelionOrg is BaseTemplate {
     string constant private ERROR_EMPTY_HOLDERS = "DANDELION_EMPTY_HOLDERS";
     string constant private ERROR_BAD_HOLDERS_STAKES_LEN = "DANDELION_BAD_HOLDERS_STAKES_LEN";
     string constant private ERROR_BAD_VOTE_SETTINGS = "DANDELION_BAD_VOTE_SETTINGS";
     string constant private ERROR_BAD_PAYROLL_SETTINGS = "DANDELION_BAD_PAYROLL_SETTINGS";
     string constant private ERROR_MISSING_CACHE = "DANDELION_MISSING_CACHE";
+    string constant private ERROR_MISSING_TOKEN_CACHE = "DANDELION_MISSING_TOKEN_CACHE";
 
     bool constant private TOKEN_TRANSFERABLE = false;
     uint8 constant private TOKEN_DECIMALS = uint8(18);
@@ -28,6 +28,7 @@ contract DandelionOrg is BaseTemplate, TokenCache {
 
     struct Cache {
         address dao;
+        address token;
         address tokenManager;
         address agentOrVault;
         address finance;
@@ -109,7 +110,7 @@ contract DandelionOrg is BaseTemplate, TokenCache {
     */
     function newToken(string memory _name, string memory _symbol) public returns (MiniMeToken) {
         MiniMeToken token = _createToken(_name, _symbol, TOKEN_DECIMALS);
-        _cacheToken(token, msg.sender);
+        _cacheToken(token);
         return token;
     }
 
@@ -177,7 +178,7 @@ contract DandelionOrg is BaseTemplate, TokenCache {
     )
         internal
     {
-        MiniMeToken token = _popTokenCache(msg.sender);
+        MiniMeToken token = _popTokenCache();
         Vault agentOrVault = _useAgentAsVault ? _installDefaultAgentApp(_dao) : _installVaultApp(_dao);
         Finance finance = _installFinanceApp(_dao, agentOrVault, _financePeriod == 0 ? DEFAULT_FINANCE_PERIOD : _financePeriod);
         TokenManager tokenManager = _installTokenManagerApp(_dao, token, TOKEN_TRANSFERABLE, TOKEN_MAX_PER_ACCOUNT);
@@ -196,7 +197,7 @@ contract DandelionOrg is BaseTemplate, TokenCache {
     )
         internal
     {
-        MiniMeToken token = _popTokenCache(msg.sender);
+        MiniMeToken token = _popTokenCache();
         Redemptions redemptions = _installRedemptionsApp(_dao);
         TokenRequest tokenRequest = _installTokenRequestApp(_dao, tokenRequestAcceptedDepositTokens);
         TimeLock timeLock = _installTimeLockApp(_dao, _timeLockToken, _timeLockSettings);
@@ -331,6 +332,11 @@ contract DandelionOrg is BaseTemplate, TokenCache {
         _createTimeLockPermissions(_acl, timeLock, dandelionVoting, dandelionVoting);
     }
 
+    function _cacheToken(MiniMeToken _token) internal {
+        Cache storage c = cache[msg.sender];
+
+        c.token = address(_token);
+    }
 
     function _cacheBaseApps(Kernel _dao, TokenManager _tokenManager, Vault _vault, Finance _finance) internal {
         Cache storage c = cache[msg.sender];
@@ -349,6 +355,14 @@ contract DandelionOrg is BaseTemplate, TokenCache {
         c.redemptions = address(_redemptions);
         c.timeLock = address(_timeLock);
         c.dandelionVoting = address(_dandelionVoting);
+    }
+
+    function _popTokenCache() internal returns (MiniMeToken) {
+        Cache storage c = cache[msg.sender];
+        require(c.token != address(0), ERROR_MISSING_TOKEN_CACHE);
+
+        MiniMeToken token = MiniMeToken(c.token);
+        return token;
     }
 
     function _popDaoCache() internal returns (Kernel dao) {
@@ -402,6 +416,7 @@ contract DandelionOrg is BaseTemplate, TokenCache {
         require(c.dao != address(0), ERROR_MISSING_CACHE);
 
         delete c.dao;
+        delete c.token;
         delete c.tokenManager;
         delete c.agentOrVault;
         delete c.finance;
