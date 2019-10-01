@@ -1,7 +1,7 @@
 {
-  "name": "@aragon/templates-company",
+  "name": "@aragon/templates-dandelion",
   "version": "1.0.0",
-  "description": "Company template for Aragon organizations",
+  "description": "Dandelion template for Aragon organizations",
   "author": "Aragon Association <legal@aragon.org>",
   "license": "GPL-3.0-or-later",
   "files": [
