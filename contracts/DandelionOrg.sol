@@ -92,15 +92,15 @@ contract DandelionOrg is BaseTemplate {
         (,,Finance finance) = _popBaseAppsCache();
 
         _installDandelionApps(dao, _tokenRequestAcceptedDepositTokens, _timeLockToken, _timeLockSettings, _votingSettings);
-        (Voting dandelionVoting,,,) = _popDandelionAppsCache();
+        // (Voting dandelionVoting,,,) = _popDandelionAppsCache();
 
-        _setupBasePermissions(acl, agentAsVault);
-        _setupDandelionPermissions(acl);
+        // _setupBasePermissions(acl, agentAsVault);
+        // _setupDandelionPermissions(acl);
 
-        _transferCreatePaymentManagerFromTemplate(acl, finance, dandelionVoting);
-        _transferRootPermissionsFromTemplateAndFinalizeDAO(dao, dandelionVoting);
-        _registerID(_id, address(dao));
-        _clearCache();
+        // _transferCreatePaymentManagerFromTemplate(acl, finance, dandelionVoting);
+        // _transferRootPermissionsFromTemplateAndFinalizeDAO(dao, dandelionVoting);
+        // _registerID(_id, address(dao));
+        // _clearCache();
     }
 
     /**
@@ -199,11 +199,11 @@ contract DandelionOrg is BaseTemplate {
     {
         MiniMeToken token = _popTokenCache();
         Redemptions redemptions = _installRedemptionsApp(_dao);
-        TokenRequest tokenRequest = _installTokenRequestApp(_dao, tokenRequestAcceptedDepositTokens);
-        TimeLock timeLock = _installTimeLockApp(_dao, _timeLockToken, _timeLockSettings);
-        Voting dandelionVoting = _installVotingApp(_dao, token, _votingSettings);
+        // TokenRequest tokenRequest = _installTokenRequestApp(_dao, tokenRequestAcceptedDepositTokens);
+        // TimeLock timeLock = _installTimeLockApp(_dao, _timeLockToken, _timeLockSettings);
+        // Voting dandelionVoting = _installVotingApp(_dao, token, _votingSettings);
 
-        _cacheDandelionApps(tokenRequest, redemptions, timeLock, dandelionVoting);
+        // _cacheDandelionApps(tokenRequest, redemptions, timeLock, dandelionVoting);
 
     }
 
@@ -222,7 +222,7 @@ contract DandelionOrg is BaseTemplate {
     function _installRedemptionsApp(Kernel _dao) internal returns (Redemptions) {
 
         (TokenManager tokenManager, Vault vault,) = _popBaseAppsCache();
-        Redemptions redemptions = Redemptions(_installNonDefaultApp(_dao, REDEMPTIONS_APP_ID));
+        Redemptions redemptions = Redemptions(_registerApp(_dao, REDEMPTIONS_APP_ID));
         redemptions.initialize(vault, tokenManager);
         return redemptions;
     }
@@ -453,5 +453,11 @@ contract DandelionOrg is BaseTemplate {
         require(_holders.length == _stakes.length, ERROR_BAD_HOLDERS_STAKES_LEN);
     }
 
+    function _registerApp(Kernel _dao, bytes32 _appId) internal returns (address) {
+        address proxy = _dao.newAppInstance(_appId, _latestVersionAppBase(_appId));
+        emit InstalledApp(proxy, _appId);
+
+        return proxy;
+    }
 
 }
