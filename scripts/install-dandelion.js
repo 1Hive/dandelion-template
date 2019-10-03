@@ -38,7 +38,7 @@ module.exports = async (
     log("Owner:", owner);
 
     const dandelionOrg = await DandelionOrg.at(
-      "0x0ed303a63921124a24f19156bc5fe8535eb03586"
+      "0xa3c4f6f610a941fabc88610259e9ef453a158b84"
     );
 
     const ONE_DAY = 60 * 60 * 24;
