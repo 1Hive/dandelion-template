@@ -16,6 +16,10 @@ contract DandelionOrg is BaseTemplate {
     string constant private ERROR_BAD_PAYROLL_SETTINGS = "DANDELION_BAD_PAYROLL_SETTINGS";
     string constant private ERROR_MISSING_CACHE = "DANDELION_MISSING_CACHE";
     string constant private ERROR_MISSING_TOKEN_CACHE = "DANDELION_MISSING_TOKEN_CACHE";
+    string constant private ERROR_BAD_TOKENREQUEST_TOKEN_LIST = "DANDELION_BAD_TOKENREQUEST_TOKEN_LIST";
+    string constant private ERROR_TIMELOCK_TOKEN_NOT_CONTRACT = "DANDELION_TIMELOCK_TOKEN_NOT_CONTRACT";
+    string constant private ERROR_BAD_TIMELOCK_SETTINGS = "DANDELION_BAD_TIMELOCK_SETTINGS";
+    string constant private ERROR_BAD_VOTING_SETTINGS = "DANDELION_BAD_VOTING_SETTINGS";
 
     bool constant private TOKEN_TRANSFERABLE = false;
     uint8 constant private TOKEN_DECIMALS = uint8(18);
@@ -82,6 +86,7 @@ contract DandelionOrg is BaseTemplate {
     /**
     * @dev Install the Dandelion set of apps
     * @param _id String with the name for org, will assign `[id].aragonid.eth`
+    * @param _redemptionsRedeemableTokens address[] with the list of redeemable tokens for redemptions app
     * @param _tokenRequestAcceptedDepositTokens address[] with the list of accepted deposit tokens for token request
     * @param _timeLockToken Address of the token for the lock app`
     * @param _timeLockSettings Array of [_lockDuration, _lockAmount, _spamPenaltyFactor] to set up the timeLock app of the organization
@@ -213,6 +218,7 @@ contract DandelionOrg is BaseTemplate {
     )
         internal
     {
+        _ensureDandelionSettings(_tokenRequestAcceptedDepositTokens, _timeLockToken, _timeLockSettings, _votingSettings);
         MiniMeToken token = _popTokenCache();
         Redemptions redemptions = _installRedemptionsApp(_dao, _redemptionsRedeemableTokens);
         TokenRequest tokenRequest = _installTokenRequestApp(_dao, _tokenRequestAcceptedDepositTokens);
@@ -512,6 +518,21 @@ contract DandelionOrg is BaseTemplate {
         require(_holders.length > 0, ERROR_EMPTY_HOLDERS);
         require(_holders.length == _stakes.length, ERROR_BAD_HOLDERS_STAKES_LEN);
     }
+
+    function _ensureDandelionSettings(
+        address[] memory _tokenRequestAcceptedDepositTokens,
+        address _timeLockToken,
+        uint256[3] memory _timeLockSettings,
+        uint64[3] memory _votingSettings
+    )
+        private
+    {
+        require(_tokenRequestAcceptedDepositTokens.length > 0, ERROR_BAD_TOKENREQUEST_TOKEN_LIST);
+        require(isContract(_timeLockToken), ERROR_TIMELOCK_TOKEN_NOT_CONTRACT);
+        require(_timeLockSettings.length == 3, ERROR_BAD_TIMELOCK_SETTINGS);
+        require(_votingSettings.length == 3, ERROR_BAD_VOTING_SETTINGS);
+    }
+
 
     function _registerApp(Kernel _dao, bytes32 _appId) internal returns (address) {
         address proxy = _dao.newAppInstance(_appId, _latestVersionAppBase(_appId));
