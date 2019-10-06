@@ -5,6 +5,8 @@ import "@aragon/templates-shared/contracts/BaseTemplate.sol";
 import "@1hive/apps-redemptions/contracts/Redemptions.sol";
 import "@1hive/apps-time-lock/contracts/TimeLock.sol";
 import "@1hive/apps-token-request/contracts/TokenRequest.sol";
+import "@1hive/apps-delay/contracts/Delay.sol";
+import "openzeppelin-solidity/contracts/token/ERC20/ERC20Detailed.sol";
 
 
 contract DandelionOrg is BaseTemplate {
@@ -23,6 +25,7 @@ contract DandelionOrg is BaseTemplate {
     bytes32 constant private REDEMPTIONS_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("redemptions")));
     bytes32 constant private TOKEN_REQUEST_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("token-request")));
     bytes32 constant private TIME_LOCK_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("time-lock")));
+    bytes32 constant private DELAY_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("delay")));
 
     address constant ANY_ENTITY = address(-1);
 
@@ -36,6 +39,7 @@ contract DandelionOrg is BaseTemplate {
         address redemptions;
         address timeLock;
         address dandelionVoting;
+        address delay;
         bool agentAsVault;
     }
 
@@ -75,13 +79,23 @@ contract DandelionOrg is BaseTemplate {
         newBaseInstance(_id, _holders, _stakes, _financePeriod, _useAgentAsVault);
     }
 
+    /**
+    * @dev Install the Dandelion set of apps
+    * @param _id String with the name for org, will assign `[id].aragonid.eth`
+    * @param _tokenRequestAcceptedDepositTokens address[] with the list of accepted deposit tokens for token request
+    * @param _timeLockToken Address of the token for the lock app`
+    * @param _timeLockSettings Array of [_lockDuration, _lockAmount, _spamPenaltyFactor] to set up the timeLock app of the organization
+    * @param _votingSettings Array of [supportRequired, minAcceptanceQuorum, voteDuration] to set up the voting app of the organization
+    * @param _executionDelay execution delay time to set up the delay app
+    */
     function installDandelionApps(
         string _id,
+        address[] _redemptionsRedeemableTokens,
         address[] _tokenRequestAcceptedDepositTokens,
         address _timeLockToken,
         uint256[3] _timeLockSettings,
-        uint64[3] _votingSettings
-
+        uint64[3] _votingSettings,
+        uint64 _executionDelay
     )
         external
     {
@@ -91,7 +105,7 @@ contract DandelionOrg is BaseTemplate {
         bool agentAsVault = _popAgentAsVaultCache();
         (,,Finance finance) = _popBaseAppsCache();
 
-        _installDandelionApps(dao, _tokenRequestAcceptedDepositTokens, _timeLockToken, _timeLockSettings, _votingSettings);
+        _installDandelionApps(dao, _redemptionsRedeemableTokens, _tokenRequestAcceptedDepositTokens, _timeLockToken, _timeLockSettings, _votingSettings, _executionDelay);
         (Voting dandelionVoting,,,) = _popDandelionAppsCache();
 
         _setupBasePermissions(acl, agentAsVault);
@@ -190,20 +204,24 @@ contract DandelionOrg is BaseTemplate {
 
     function _installDandelionApps(
         Kernel _dao,
-        address[] memory tokenRequestAcceptedDepositTokens,
+        address[] memory _redemptionsRedeemableTokens,
+        address[] memory _tokenRequestAcceptedDepositTokens,
         address _timeLockToken,
         uint256[3] memory _timeLockSettings,
-        uint64[3] memory _votingSettings
+        uint64[3] memory _votingSettings,
+        uint64 _executionDelay
     )
         internal
     {
         MiniMeToken token = _popTokenCache();
-        Redemptions redemptions = _installRedemptionsApp(_dao);
-        TokenRequest tokenRequest = _installTokenRequestApp(_dao, tokenRequestAcceptedDepositTokens);
+        Redemptions redemptions = _installRedemptionsApp(_dao, _redemptionsRedeemableTokens);
+        TokenRequest tokenRequest = _installTokenRequestApp(_dao, _tokenRequestAcceptedDepositTokens);
         TimeLock timeLock = _installTimeLockApp(_dao, _timeLockToken, _timeLockSettings);
         Voting dandelionVoting = _installVotingApp(_dao, token, _votingSettings);
+        Delay delay = _installDelayApp(_dao, _executionDelay);
 
-        _cacheDandelionApps(tokenRequest, redemptions, timeLock, dandelionVoting);
+
+        _cacheDandelionApps(tokenRequest, redemptions, timeLock, dandelionVoting, delay);
 
     }
 
@@ -219,11 +237,11 @@ contract DandelionOrg is BaseTemplate {
 
     /* REDEMPTIONS */
 
-    function _installRedemptionsApp(Kernel _dao) internal returns (Redemptions) {
+    function _installRedemptionsApp(Kernel _dao, address[] memory _redemptionsRedeemableTokens) internal returns (Redemptions) {
 
         (TokenManager tokenManager, Vault vault,) = _popBaseAppsCache();
         Redemptions redemptions = Redemptions(_registerApp(_dao, REDEMPTIONS_APP_ID));
-        redemptions.initialize(vault, tokenManager);
+        redemptions.initialize(vault, tokenManager, _redemptionsRedeemableTokens);
         return redemptions;
     }
 
@@ -231,6 +249,8 @@ contract DandelionOrg is BaseTemplate {
     function _createRedemptionsPermissions(
         ACL _acl,
         Redemptions _redemptions,
+        TokenManager _tokenManager,
+        Vault _vault,
         Voting _voting,
         address _manager
     )
@@ -240,22 +260,51 @@ contract DandelionOrg is BaseTemplate {
         _acl.createPermission(ANY_ENTITY, _redemptions, _redemptions.REDEEM_ROLE(), _manager);
         _acl.createPermission(_voting, _redemptions, _redemptions.ADD_TOKEN_ROLE(), _manager);
         _acl.createPermission(_voting, _redemptions, _redemptions.REMOVE_TOKEN_ROLE(), _manager);
+        _acl.grantPermission(_redemptions, _tokenManager, _tokenManager.BURN_ROLE());
+        _acl.grantPermission(_redemptions, _vault, _vault.TRANSFER_ROLE());
+
+    }
+
+    /* DELAY */
+
+    function _installDelayApp(Kernel _dao, uint64 _executionDelay) internal returns (Delay) {
+
+        Delay delay = Delay(_registerApp(_dao, DELAY_APP_ID));
+        delay.initialize(_executionDelay);
+        return delay;
+    }
+
+    function _createDelayPermissions(
+        ACL _acl,
+        Delay _delay,
+        TokenManager _tokenManager,
+        Voting _voting,
+        address _manager
+    )
+        internal
+    {
+        _acl.createPermission(_voting, _delay, _delay.SET_DELAY_ROLE(), _manager);
+        _acl.createPermission(_tokenManager, _delay, _delay.PAUSE_EXECUTION_ROLE(), _manager);
+        _acl.createPermission(_tokenManager, _delay, _delay.RESUME_EXECUTION_ROLE(), _manager);
+        _acl.createPermission(_tokenManager, _delay, _delay.CANCEL_EXECUTION_ROLE(), _manager);
+        _acl.createPermission(_tokenManager, _delay, _delay.DELAY_EXECUTION_ROLE(), _manager);
 
     }
 
     /* TOKEN REQUEST */
 
-    function _installTokenRequestApp(Kernel _dao, address[] memory tokenRequestAcceptedDepositTokens) internal returns (TokenRequest) {
+    function _installTokenRequestApp(Kernel _dao, address[] memory _tokenRequestAcceptedDepositTokens) internal returns (TokenRequest) {
 
         (TokenManager tokenManager, Vault vault,) = _popBaseAppsCache();
         TokenRequest tokenRequest = TokenRequest(_registerApp(_dao, TOKEN_REQUEST_APP_ID));
-        tokenRequest.initialize(tokenManager, vault, tokenRequestAcceptedDepositTokens);
+        tokenRequest.initialize(tokenManager, vault, _tokenRequestAcceptedDepositTokens);
         return tokenRequest;
     }
 
     function _createTokenRequestPermissions(
         ACL _acl,
         TokenRequest _tokenRequest,
+        TokenManager _tokenManager,
         Voting _voting,
         address _manager
     )
@@ -264,6 +313,7 @@ contract DandelionOrg is BaseTemplate {
         _acl.createPermission(_voting, _tokenRequest, _tokenRequest.SET_TOKEN_MANAGER_ROLE(), _manager);
         _acl.createPermission(_voting, _tokenRequest, _tokenRequest.SET_VAULT_ROLE(), _manager);
         _acl.createPermission(_voting, _tokenRequest, _tokenRequest.FINALISE_TOKEN_REQUEST_ROLE(), _manager);
+        _acl.grantPermission(_tokenRequest, _tokenManager, _tokenManager.MINT_ROLE());
 
     }
 
@@ -283,7 +333,8 @@ contract DandelionOrg is BaseTemplate {
         internal returns (TimeLock)
     {
         TimeLock timeLock = TimeLock(_registerApp(_dao, TIME_LOCK_APP_ID));
-        timeLock.initialize(_timeLockToken, _lockDuration, _lockAmount, _spamPenaltyFactor);
+        uint256 adjustedAmount = _lockAmount * (10 ** ERC20Detailed(_timeLockToken).decimals());
+        timeLock.initialize(_timeLockToken, _lockDuration, adjustedAmount, _spamPenaltyFactor);
         return timeLock;
     }
 
@@ -315,22 +366,26 @@ contract DandelionOrg is BaseTemplate {
         if (_useAgentAsVault) {
             _createAgentPermissions(_acl, Agent(agentOrVault), dandelionVoting, dandelionVoting);
         }
-        _createVaultPermissions(_acl, agentOrVault, finance, dandelionVoting);
+        _createVaultPermissions(_acl, agentOrVault, finance, address(this));
         _createFinancePermissions(_acl, finance, dandelionVoting, dandelionVoting);
         _createFinanceCreatePaymentsPermission(_acl, finance, dandelionVoting, address(this));
-        _createTokenManagerPermissions(_acl, tokenManager, dandelionVoting, dandelionVoting);
+        _createTokenManagerPermissions(_acl, tokenManager, dandelionVoting,  address(this));
     }
 
     function _setupDandelionPermissions(ACL _acl) internal {
 
         (TokenManager tokenManager, Vault agentOrVault, Finance finance) = _popBaseAppsCache();
-        (Voting dandelionVoting, Redemptions redemptions, TokenRequest tokenRequest, TimeLock timeLock ) = _popDandelionAppsCache();
+        (Voting dandelionVoting, Redemptions redemptions, TokenRequest tokenRequest, TimeLock timeLock, Delay delay ) = _popDandelionAppsCache();
 
-        _createRedemptionsPermissions(_acl, redemptions, dandelionVoting, dandelionVoting);
-        _createTokenRequestPermissions(_acl, tokenRequest, dandelionVoting, dandelionVoting);
+        _createRedemptionsPermissions(_acl, redemptions, tokenManager, agentOrVault, dandelionVoting, dandelionVoting);
+        _createTokenRequestPermissions(_acl, tokenRequest, tokenManager, dandelionVoting, dandelionVoting);
         _createTimeLockPermissions(_acl, timeLock, dandelionVoting, dandelionVoting);
         _createEvmScriptsRegistryPermissions(_acl, dandelionVoting, dandelionVoting);
         _createVotingPermissions(_acl, dandelionVoting, dandelionVoting, tokenManager, dandelionVoting);
+        _createDelayPermissions(_acl, delay, tokenManager, dandelionVoting, dandelionVoting);
+        _transferPermissionFromTemplate(_acl, tokenManager, dandelionVoting, tokenManager.MINT_ROLE(), dandelionVoting);
+        _transferPermissionFromTemplate(_acl, tokenManager, dandelionVoting,tokenManager.BURN_ROLE(), dandelionVoting);
+        _transferPermissionFromTemplate(_acl, agentOrVault, dandelionVoting, agentOrVault.TRANSFER_ROLE(), dandelionVoting);
 
     }
 
@@ -349,7 +404,7 @@ contract DandelionOrg is BaseTemplate {
         c.finance = address(_finance);
     }
 
-    function _cacheDandelionApps(TokenRequest _tokenRequest, Redemptions _redemptions, TimeLock _timeLock, Voting _dandelionVoting) internal {
+    function _cacheDandelionApps(TokenRequest _tokenRequest, Redemptions _redemptions, TimeLock _timeLock, Voting _dandelionVoting, Delay _delay) internal {
         Cache storage c = cache[msg.sender];
         require(c.dao != address(0), ERROR_MISSING_CACHE);
 
@@ -357,6 +412,7 @@ contract DandelionOrg is BaseTemplate {
         c.redemptions = address(_redemptions);
         c.timeLock = address(_timeLock);
         c.dandelionVoting = address(_dandelionVoting);
+        c.delay = address(_delay);
     }
 
     function _popTokenCache() internal returns (MiniMeToken) {
@@ -400,7 +456,8 @@ contract DandelionOrg is BaseTemplate {
         Voting dandelionVoting,
         Redemptions redemptions,
         TokenRequest tokenRequest,
-        TimeLock timeLock
+        TimeLock timeLock,
+        Delay delay
     )
     {
         Cache storage c = cache[msg.sender];
@@ -411,6 +468,7 @@ contract DandelionOrg is BaseTemplate {
         redemptions = Redemptions(c.redemptions);
         tokenRequest = TokenRequest(c.tokenRequest);
         timeLock = TimeLock(c.timeLock);
+        delay = Delay(c.delay);
     }
 
      function _clearCache() internal {

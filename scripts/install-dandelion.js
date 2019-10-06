@@ -38,7 +38,7 @@ module.exports = async (
     log("Owner:", owner);
 
     const dandelionOrg = await DandelionOrg.at(
-      "0xa3c4f6f610a941fabc88610259e9ef453a158b84"
+      "0x14baea2d797d88529ed0e35adb2ae84ccad9b548"
     );
 
     const ONE_DAY = 60 * 60 * 24;
@@ -55,30 +55,35 @@ module.exports = async (
 
     const bigExp = (x, y = 0) => new BN(x).mul(new BN(10).pow(new BN(y)));
     const pct16 = x => bigExp(x, 16);
-    const decimals = 18;
 
-    const INITIAL_LOCK_AMOUNT = bigExp(10, decimals);
+    const INITIAL_LOCK_AMOUNT = new BN(10);
     const INITIAL_LOCK_DURATION = 60; // seconds
     const INITIAL_SPAM_PENALTY_FACTOR = pct16(50); // 50%
     const TIME_LOCK_SETTINGS = [
-      INITIAL_LOCK_AMOUNT,
       INITIAL_LOCK_DURATION,
+      INITIAL_LOCK_AMOUNT,
       INITIAL_SPAM_PENALTY_FACTOR
     ];
 
-    const daoID = "mycompany22";
+    const EXECUTION_DELAY = 50e16;
+
+    const daoID = "company24";
     const acceptedDepositToken = ["0x0000000000000000000000000000000000000000"];
 
     log("before token ");
-    const timeLockToken = await ERC20.new({ from: owner });
+    const timeLockToken = await ERC20.new(owner, "TEST", "TST", {
+      from: owner
+    });
     log("after token");
 
     const receipt = await dandelionOrg.installDandelionApps(
       daoID,
       acceptedDepositToken,
+      acceptedDepositToken,
       timeLockToken.address,
       TIME_LOCK_SETTINGS,
       VOTING_SETTINGS,
+      EXECUTION_DELAY,
       { from: owner, gas: 10000000 }
     );
 

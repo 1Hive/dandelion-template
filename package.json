@@ -37,9 +37,10 @@
     "publish:mainnet": "aragon apm publish major $(npm run deploy:mainnet | tail -n 1) --environment mainnet"
   },
   "dependencies": {
-    "@1hive/apps-redemptions": "^1.0.0",
+    "@1hive/apps-redemptions": "^1.0.1",
     "@1hive/apps-time-lock": "^1.0.0",
     "@1hive/apps-token-request": "^1.0.0",
+    "@1hive/apps-delay": "^1.0.0",
     "@aragon/apps-agent": "^2.0.0",
     "@aragon/apps-finance": "^3.0.0",
     "@aragon/apps-payroll": "^1.0.0",
@@ -50,7 +51,8 @@
     "@aragon/id": "2.0.3",
     "@aragon/os": "4.3.0",
     "@aragon/templates-shared": "^1.0.0",
-    "bn.js": "^5.0.0"
+    "bn.js": "^5.0.0",
+    "openzeppelin-solidity": "2.0.1"
   },
   "devDependencies": {
     "@aragon/apps-survey": "^1.0.0",
