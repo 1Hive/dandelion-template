@@ -25,11 +25,11 @@ contract DandelionOrg is BaseTemplate {
     uint8 constant private TOKEN_DECIMALS = uint8(18);
     uint256 constant private TOKEN_MAX_PER_ACCOUNT = uint256(0);
 
-    bytes32 constant private REDEMPTIONS_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("redemptions")));
-    bytes32 constant private TOKEN_REQUEST_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("token-request")));
-    bytes32 constant private TIME_LOCK_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("time-lock")));
-    bytes32 constant private DELAY_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("delay")));
-    bytes32 constant private TOKEN_BALANCE_ORACLE_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("token-balance-oracle")));
+    bytes32 constant private REDEMPTIONS_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("redemptions-staging")));
+    bytes32 constant private TOKEN_REQUEST_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("token-request-staging")));
+    bytes32 constant private TIME_LOCK_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("time-lock-staging")));
+    bytes32 constant private DELAY_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("delay-staging")));
+    bytes32 constant private TOKEN_BALANCE_ORACLE_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("token-balance-oracle-staging")));
 
     address constant ANY_ENTITY = address(-1);
     uint8 constant ORACLE_PARAM_ID = 203;
@@ -201,7 +201,7 @@ contract DandelionOrg is BaseTemplate {
 
     function _installRedemptionsApp(Kernel _dao, address[] memory _redemptionsRedeemableTokens) internal returns (Redemptions) {
 
-        (TokenManager tokenManager, Vault vault,) = _popBaseAppsCache();
+        (TokenManager tokenManager, Vault vault) = _popBaseAppsCache();
         Redemptions redemptions = Redemptions(_registerApp(_dao, REDEMPTIONS_APP_ID));
         redemptions.initialize(vault, tokenManager, _redemptionsRedeemableTokens);
         return redemptions;
@@ -231,7 +231,7 @@ contract DandelionOrg is BaseTemplate {
 
     function _installTokenRequestApp(Kernel _dao, address[] memory _tokenRequestAcceptedDepositTokens) internal returns (TokenRequest) {
 
-        (TokenManager tokenManager, Vault vault,) = _popBaseAppsCache();
+        (TokenManager tokenManager, Vault vault) = _popBaseAppsCache();
         TokenRequest tokenRequest = TokenRequest(_registerApp(_dao, TOKEN_REQUEST_APP_ID));
         tokenRequest.initialize(tokenManager, vault, _tokenRequestAcceptedDepositTokens);
         return tokenRequest;
@@ -323,7 +323,7 @@ contract DandelionOrg is BaseTemplate {
     /** TOKEN BALANCE ORACLE */
 
     function _installTokenBalanceOracle(Kernel _dao) internal returns (TokenBalanceOracle) {
-        (TokenManager tokenManager,,) = _popBaseAppsCache();
+        (TokenManager tokenManager,) = _popBaseAppsCache();
         TokenBalanceOracle oracle = TokenBalanceOracle(_registerApp(_dao, TOKEN_BALANCE_ORACLE_APP_ID));
         oracle.initialize(tokenManager.token(), 1 * (10 ** uint256(TOKEN_DECIMALS)));
         return oracle;
@@ -355,7 +355,6 @@ contract DandelionOrg is BaseTemplate {
         if (_useAgentAsVault) {
             _createAgentPermissions(_acl, Agent(agentOrVault), dandelionVoting, dandelionVoting);
         }
-        //_createVaultPermissions(_acl, agentOrVault, finance, address(this));
         _createTokenManagerPermissions(_acl, tokenManager, dandelionVoting,  address(this));
     }
 

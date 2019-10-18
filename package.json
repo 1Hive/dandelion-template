@@ -38,7 +38,7 @@
   },
   "dependencies": {
     "@1hive/apps-delay": "^1.0.0",
-    "@1hive/apps-redemptions": "^1.0.1",
+    "@1hive/apps-redemptions": "^1.0.0",
     "@1hive/apps-time-lock": "^1.0.0",
     "@1hive/apps-token-request": "^1.0.0",
     "@1hive/oracle-token-balance": "^2.0.0",
