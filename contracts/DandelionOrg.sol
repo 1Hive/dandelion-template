@@ -6,6 +6,7 @@ import "@1hive/apps-redemptions/contracts/Redemptions.sol";
 import "@1hive/apps-time-lock/contracts/TimeLock.sol";
 import "@1hive/apps-token-request/contracts/TokenRequest.sol";
 import "@1hive/apps-delay/contracts/Delay.sol";
+import "@1hive/apps-dandelion-voting/contracts/DandelionVoting.sol";
 import "@1hive/oracle-token-balance/contracts/TokenBalanceOracle.sol";
 import "openzeppelin-solidity/contracts/token/ERC20/ERC20Detailed.sol";
 
@@ -25,11 +26,12 @@ contract DandelionOrg is BaseTemplate {
     uint8 constant private TOKEN_DECIMALS = uint8(18);
     uint256 constant private TOKEN_MAX_PER_ACCOUNT = uint256(0);
 
-    bytes32 constant private REDEMPTIONS_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("redemptions-staging")));
-    bytes32 constant private TOKEN_REQUEST_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("token-request-staging")));
-    bytes32 constant private TIME_LOCK_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("time-lock-staging")));
-    bytes32 constant private DELAY_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("delay-staging")));
-    bytes32 constant private TOKEN_BALANCE_ORACLE_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("token-balance-oracle-staging")));
+    bytes32 constant private REDEMPTIONS_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("redemptions")));
+    bytes32 constant private TOKEN_REQUEST_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("token-request")));
+    bytes32 constant private TIME_LOCK_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("time-lock")));
+    bytes32 constant private DELAY_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("delay")));
+    bytes32 constant private TOKEN_BALANCE_ORACLE_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("token-balance-oracle")));
+    bytes32 constant private DANDELION_VOTING_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("dandelion-voting")));
 
     address constant ANY_ENTITY = address(-1);
     uint8 constant ORACLE_PARAM_ID = 203;
@@ -99,7 +101,7 @@ contract DandelionOrg is BaseTemplate {
         address[] _tokenRequestAcceptedDepositTokens,
         address _timeLockToken,
         uint256[3] _timeLockSettings,
-        uint64[3] _votingSettings,
+        uint64[4] _votingSettings,
         uint64 _executionDelay
     )
         external
@@ -110,7 +112,7 @@ contract DandelionOrg is BaseTemplate {
         bool agentAsVault = _popAgentAsVaultCache();
 
         _installDandelionApps(dao, _redemptionsRedeemableTokens, _tokenRequestAcceptedDepositTokens, _timeLockToken, _timeLockSettings, _votingSettings, _executionDelay);
-        (Voting dandelionVoting,,,,,) = _popDandelionAppsCache();
+        (DandelionVoting dandelionVoting,,,,,) = _popDandelionAppsCache();
 
         _setupBasePermissions(acl, agentAsVault);
         _setupDandelionPermissions(acl);
@@ -179,14 +181,15 @@ contract DandelionOrg is BaseTemplate {
         address[] memory _tokenRequestAcceptedDepositTokens,
         address _timeLockToken,
         uint256[3] memory _timeLockSettings,
-        uint64[3] memory _votingSettings,
+        uint64[4] memory _votingSettings,
         uint64 _executionDelay
     )
         internal
     {
         _ensureDandelionSettings(_tokenRequestAcceptedDepositTokens, _timeLockToken, _timeLockSettings, _votingSettings);
         MiniMeToken token = _popTokenCache();
-        Voting dandelionVoting = _installVotingApp(_dao, token, _votingSettings);
+        //Voting dandelionVoting = _installVotingApp(_dao, token, _votingSettings[0],  _votingSettings[1],  _votingSettings[2]);
+        DandelionVoting dandelionVoting = _installDandelionVotingApp(_dao, token, _votingSettings);
         Redemptions redemptions = _installRedemptionsApp(_dao, _redemptionsRedeemableTokens);
         TokenRequest tokenRequest = _installTokenRequestApp(_dao, _tokenRequestAcceptedDepositTokens);
         TimeLock timeLock = _installTimeLockApp(_dao, _timeLockToken, _timeLockSettings);
@@ -197,11 +200,48 @@ contract DandelionOrg is BaseTemplate {
         _cacheDandelionApps(dandelionVoting, redemptions, tokenRequest, timeLock, delay, oracle);
     }
 
+    /* DANDELION VOTING */
+
+    function _installDandelionVotingApp(Kernel _dao, MiniMeToken _token, uint64[4] memory _votingSettings) internal returns (DandelionVoting) {
+        return _installDandelionVotingApp(_dao, _token, _votingSettings[0], _votingSettings[1], _votingSettings[2],  _votingSettings[3]);
+    }
+
+    function _installDandelionVotingApp(
+        Kernel _dao,
+        MiniMeToken _token,
+        uint64 _support,
+        uint64 _acceptance,
+        uint64 _duration,
+        uint64 _buffer
+    )
+        internal returns (DandelionVoting)
+    {
+        DandelionVoting dandelionVoting = DandelionVoting(_registerApp(_dao, DANDELION_VOTING_APP_ID));
+        dandelionVoting.initialize(_token, _support, _acceptance, _duration, _buffer);
+
+        return dandelionVoting;
+    }
+
+    function _createDandelionVotingPermissions(
+        ACL _acl,
+        DandelionVoting _voting,
+        address _settingsGrantee,
+        address _createVotesGrantee,
+        address _manager
+    )
+        internal
+    {
+        _acl.createPermission(_settingsGrantee, _voting, _voting.MODIFY_QUORUM_ROLE(), _manager);
+        _acl.createPermission(_settingsGrantee, _voting, _voting.MODIFY_SUPPORT_ROLE(), _manager);
+        _acl.createPermission(_settingsGrantee, _voting, _voting.MODIFY_BUFFER_BLOCKS_ROLE(), _manager);
+        _acl.createPermission(_createVotesGrantee, _voting, _voting.CREATE_VOTES_ROLE(), _manager);
+    }
+
     /* REDEMPTIONS */
 
     function _installRedemptionsApp(Kernel _dao, address[] memory _redemptionsRedeemableTokens) internal returns (Redemptions) {
 
-        (TokenManager tokenManager, Vault vault) = _popBaseAppsCache();
+        (TokenManager tokenManager, Vault vault,) = _popBaseAppsCache();
         Redemptions redemptions = Redemptions(_registerApp(_dao, REDEMPTIONS_APP_ID));
         redemptions.initialize(vault, tokenManager, _redemptionsRedeemableTokens);
         return redemptions;
@@ -213,7 +253,7 @@ contract DandelionOrg is BaseTemplate {
         Redemptions _redemptions,
         TokenManager _tokenManager,
         Vault _vault,
-        Voting _voting,
+        DandelionVoting _voting,
         address _manager
     )
         internal
@@ -231,7 +271,7 @@ contract DandelionOrg is BaseTemplate {
 
     function _installTokenRequestApp(Kernel _dao, address[] memory _tokenRequestAcceptedDepositTokens) internal returns (TokenRequest) {
 
-        (TokenManager tokenManager, Vault vault) = _popBaseAppsCache();
+        (TokenManager tokenManager, Vault vault,) = _popBaseAppsCache();
         TokenRequest tokenRequest = TokenRequest(_registerApp(_dao, TOKEN_REQUEST_APP_ID));
         tokenRequest.initialize(tokenManager, vault, _tokenRequestAcceptedDepositTokens);
         return tokenRequest;
@@ -241,7 +281,7 @@ contract DandelionOrg is BaseTemplate {
         ACL _acl,
         TokenRequest _tokenRequest,
         TokenManager _tokenManager,
-        Voting _voting,
+        DandelionVoting _voting,
         address _manager
     )
         internal
@@ -277,7 +317,7 @@ contract DandelionOrg is BaseTemplate {
     function _createTimeLockPermissions(
         ACL _acl,
         TimeLock _timeLock,
-        Voting _voting,
+        DandelionVoting _voting,
         TokenBalanceOracle _tokenBalanceOracle,
         address _manager
     )
@@ -307,7 +347,7 @@ contract DandelionOrg is BaseTemplate {
         ACL _acl,
         Delay _delay,
         TokenManager _tokenManager,
-        Voting _voting,
+        DandelionVoting _voting,
         address _manager
     )
         internal
@@ -323,7 +363,7 @@ contract DandelionOrg is BaseTemplate {
     /** TOKEN BALANCE ORACLE */
 
     function _installTokenBalanceOracle(Kernel _dao) internal returns (TokenBalanceOracle) {
-        (TokenManager tokenManager,) = _popBaseAppsCache();
+        (TokenManager tokenManager,,) = _popBaseAppsCache();
         TokenBalanceOracle oracle = TokenBalanceOracle(_registerApp(_dao, TOKEN_BALANCE_ORACLE_APP_ID));
         oracle.initialize(tokenManager.token(), 1 * (10 ** uint256(TOKEN_DECIMALS)));
         return oracle;
@@ -332,7 +372,7 @@ contract DandelionOrg is BaseTemplate {
     function _createTokenBalanceOraclePermissions(
         ACL _acl,
         TokenBalanceOracle _oracle,
-        Voting _voting,
+        DandelionVoting _voting,
         address _manager
     )
         internal
@@ -350,20 +390,21 @@ contract DandelionOrg is BaseTemplate {
     {
 
         (TokenManager tokenManager, Vault agentOrVault) = _popBaseAppsCache();
-        (Voting dandelionVoting,,,,,) = _popDandelionAppsCache();
+        (DandelionVoting dandelionVoting,,,,,) = _popDandelionAppsCache();
 
         if (_useAgentAsVault) {
             _createAgentPermissions(_acl, Agent(agentOrVault), dandelionVoting, dandelionVoting);
         }
+        //_createVaultPermissions(_acl, agentOrVault, finance, address(this));
         _createTokenManagerPermissions(_acl, tokenManager, dandelionVoting,  address(this));
     }
 
     function _setupDandelionPermissions(ACL _acl) internal {
 
         (TokenManager tokenManager, Vault agentOrVault) = _popBaseAppsCache();
-        (Voting dandelionVoting, Redemptions redemptions, TokenRequest tokenRequest, TimeLock timeLock, Delay delay, TokenBalanceOracle tokenBalanceOracle ) = _popDandelionAppsCache();
+        (DandelionVoting dandelionVoting, Redemptions redemptions, TokenRequest tokenRequest, TimeLock timeLock, Delay delay, TokenBalanceOracle tokenBalanceOracle ) = _popDandelionAppsCache();
 
-        _createVotingPermissions(_acl, dandelionVoting, dandelionVoting, tokenManager, dandelionVoting);
+        //_createVotingPermissions(_acl, dandelionVoting, dandelionVoting, tokenManager, dandelionVoting);
         _createRedemptionsPermissions(_acl, redemptions, tokenManager, agentOrVault, dandelionVoting, dandelionVoting);
         _createTokenRequestPermissions(_acl, tokenRequest, tokenManager, dandelionVoting, dandelionVoting);
         _createTimeLockPermissions(_acl, timeLock, dandelionVoting, tokenBalanceOracle, dandelionVoting);
@@ -371,6 +412,8 @@ contract DandelionOrg is BaseTemplate {
         _createTokenBalanceOraclePermissions(_acl, tokenBalanceOracle, dandelionVoting, dandelionVoting);
         _createEvmScriptsRegistryPermissions(_acl, dandelionVoting, dandelionVoting);
         _createVaultPermissions(_acl, agentOrVault, redemptions, dandelionVoting);
+        _createDandelionVotingPermissions(_acl, dandelionVoting, delay, timeLock, delay);
+
 
         _transferPermissionFromTemplate(_acl, tokenManager, dandelionVoting, tokenManager.MINT_ROLE(), dandelionVoting);
         _transferPermissionFromTemplate(_acl, tokenManager, dandelionVoting, tokenManager.BURN_ROLE(), dandelionVoting);
@@ -391,7 +434,7 @@ contract DandelionOrg is BaseTemplate {
         c.agentOrVault = address(_vault);
     }
 
-    function _cacheDandelionApps(Voting _dandelionVoting, Redemptions _redemptions, TokenRequest _tokenRequest, TimeLock _timeLock, Delay _delay, TokenBalanceOracle _tokenBalanceOracle) internal {
+    function _cacheDandelionApps(DandelionVoting _dandelionVoting, Redemptions _redemptions, TokenRequest _tokenRequest, TimeLock _timeLock, Delay _delay, TokenBalanceOracle _tokenBalanceOracle) internal {
         Cache storage c = cache[msg.sender];
         require(c.dao != address(0), ERROR_MISSING_CACHE);
 
@@ -439,7 +482,7 @@ contract DandelionOrg is BaseTemplate {
 
     function _popDandelionAppsCache() internal returns (
         /* TODO: CHANGE THIS FOR DANDELIONVOTING */
-        Voting dandelionVoting,
+        DandelionVoting dandelionVoting,
         Redemptions redemptions,
         TokenRequest tokenRequest,
         TimeLock timeLock,
@@ -451,7 +494,7 @@ contract DandelionOrg is BaseTemplate {
         require(c.dao != address(0), ERROR_MISSING_CACHE);
 
         //TODO change fot DandelionVoting type
-        dandelionVoting = Voting(c.dandelionVoting);
+        dandelionVoting = DandelionVoting(c.dandelionVoting);
         redemptions = Redemptions(c.redemptions);
         tokenRequest = TokenRequest(c.tokenRequest);
         timeLock = TimeLock(c.timeLock);
@@ -491,14 +534,14 @@ contract DandelionOrg is BaseTemplate {
         address[] memory _tokenRequestAcceptedDepositTokens,
         address _timeLockToken,
         uint256[3] memory _timeLockSettings,
-        uint64[3] memory _votingSettings
+        uint64[4] memory _votingSettings
     )
         private
     {
         require(_tokenRequestAcceptedDepositTokens.length > 0, ERROR_BAD_TOKENREQUEST_TOKEN_LIST);
         require(isContract(_timeLockToken), ERROR_TIMELOCK_TOKEN_NOT_CONTRACT);
         require(_timeLockSettings.length == 3, ERROR_BAD_TIMELOCK_SETTINGS);
-        require(_votingSettings.length == 3, ERROR_BAD_VOTING_SETTINGS);
+        require(_votingSettings.length == 4, ERROR_BAD_VOTING_SETTINGS);
     }
 
 

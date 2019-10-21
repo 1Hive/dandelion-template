@@ -42,6 +42,7 @@
     "@1hive/apps-time-lock": "^1.0.0",
     "@1hive/apps-token-request": "^1.0.0",
     "@1hive/oracle-token-balance": "^2.0.0",
+    "@1hive/apps-dandelion-voting": "^1.0.0",
     "@aragon/apps-agent": "^2.0.0",
     "@aragon/apps-finance": "^3.0.0",
     "@aragon/apps-payroll": "^1.0.0",
