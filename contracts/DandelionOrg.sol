@@ -188,7 +188,6 @@ contract DandelionOrg is BaseTemplate {
     {
         _ensureDandelionSettings(_tokenRequestAcceptedDepositTokens, _timeLockToken, _timeLockSettings, _votingSettings);
         MiniMeToken token = _popTokenCache();
-        //Voting dandelionVoting = _installVotingApp(_dao, token, _votingSettings[0],  _votingSettings[1],  _votingSettings[2]);
         DandelionVoting dandelionVoting = _installDandelionVotingApp(_dao, token, _votingSettings);
         Redemptions redemptions = _installRedemptionsApp(_dao, _redemptionsRedeemableTokens);
         TokenRequest tokenRequest = _installTokenRequestApp(_dao, _tokenRequestAcceptedDepositTokens);
@@ -253,15 +252,15 @@ contract DandelionOrg is BaseTemplate {
         Redemptions _redemptions,
         TokenManager _tokenManager,
         Vault _vault,
-        DandelionVoting _voting,
+        address _grantee,
         address _manager
     )
         internal
     {
 
         _acl.createPermission(ANY_ENTITY, _redemptions, _redemptions.REDEEM_ROLE(), _manager);
-        _acl.createPermission(_voting, _redemptions, _redemptions.ADD_TOKEN_ROLE(), _manager);
-        _acl.createPermission(_voting, _redemptions, _redemptions.REMOVE_TOKEN_ROLE(), _manager);
+        _acl.createPermission(_grantee, _redemptions, _redemptions.ADD_TOKEN_ROLE(), _manager);
+        _acl.createPermission(_grantee, _redemptions, _redemptions.REMOVE_TOKEN_ROLE(), _manager);
         _acl.grantPermission(_redemptions, _tokenManager, _tokenManager.BURN_ROLE());
 
     }
@@ -281,14 +280,14 @@ contract DandelionOrg is BaseTemplate {
         ACL _acl,
         TokenRequest _tokenRequest,
         TokenManager _tokenManager,
-        DandelionVoting _voting,
+        address _grantee,
         address _manager
     )
         internal
     {
-        _acl.createPermission(_voting, _tokenRequest, _tokenRequest.SET_TOKEN_MANAGER_ROLE(), _manager);
-        _acl.createPermission(_voting, _tokenRequest, _tokenRequest.SET_VAULT_ROLE(), _manager);
-        _acl.createPermission(_voting, _tokenRequest, _tokenRequest.FINALISE_TOKEN_REQUEST_ROLE(), _manager);
+        _acl.createPermission(_grantee, _tokenRequest, _tokenRequest.SET_TOKEN_MANAGER_ROLE(), _manager);
+        _acl.createPermission(_grantee, _tokenRequest, _tokenRequest.SET_VAULT_ROLE(), _manager);
+        _acl.createPermission(_grantee, _tokenRequest, _tokenRequest.FINALISE_TOKEN_REQUEST_ROLE(), _manager);
         _acl.grantPermission(_tokenRequest, _tokenManager, _tokenManager.MINT_ROLE());
 
     }
@@ -317,20 +316,20 @@ contract DandelionOrg is BaseTemplate {
     function _createTimeLockPermissions(
         ACL _acl,
         TimeLock _timeLock,
-        DandelionVoting _voting,
+        address _grantee,
         TokenBalanceOracle _tokenBalanceOracle,
         address _manager
     )
         internal
     {
-        _acl.createPermission(_voting, _timeLock, _timeLock.CHANGE_DURATION_ROLE(), _manager);
-        _acl.createPermission(_voting, _timeLock, _timeLock.CHANGE_AMOUNT_ROLE(), _manager);
-        _acl.createPermission(_voting, _timeLock, _timeLock.CHANGE_SPAM_PENALTY_ROLE(), _manager);
+        _acl.createPermission(_grantee, _timeLock, _timeLock.CHANGE_DURATION_ROLE(), _manager);
+        _acl.createPermission(_grantee, _timeLock, _timeLock.CHANGE_AMOUNT_ROLE(), _manager);
+        _acl.createPermission(_grantee, _timeLock, _timeLock.CHANGE_SPAM_PENALTY_ROLE(), _manager);
         _acl.createPermission(ANY_ENTITY, _timeLock, _timeLock.LOCK_TOKENS_ROLE(), address(this));
         _setOracle(_acl, ANY_ENTITY, _timeLock, _timeLock.LOCK_TOKENS_ROLE(), _tokenBalanceOracle);
 
         //change manager
-        _acl.setPermissionManager(_voting, _timeLock, _timeLock.LOCK_TOKENS_ROLE());
+        _acl.setPermissionManager(_grantee, _timeLock, _timeLock.LOCK_TOKENS_ROLE());
 
     }
 
@@ -372,13 +371,13 @@ contract DandelionOrg is BaseTemplate {
     function _createTokenBalanceOraclePermissions(
         ACL _acl,
         TokenBalanceOracle _oracle,
-        DandelionVoting _voting,
+        address _grantee,
         address _manager
     )
         internal
     {
-        _acl.createPermission(_voting, _oracle, _oracle.SET_TOKEN_ROLE(), _manager);
-        _acl.createPermission(_voting, _oracle, _oracle.SET_MIN_BALANCE_ROLE(), _manager);
+        _acl.createPermission(_grantee, _oracle, _oracle.SET_TOKEN_ROLE(), _manager);
+        _acl.createPermission(_grantee, _oracle, _oracle.SET_MIN_BALANCE_ROLE(), _manager);
 
     }
 
@@ -404,16 +403,14 @@ contract DandelionOrg is BaseTemplate {
         (TokenManager tokenManager, Vault agentOrVault) = _popBaseAppsCache();
         (DandelionVoting dandelionVoting, Redemptions redemptions, TokenRequest tokenRequest, TimeLock timeLock, Delay delay, TokenBalanceOracle tokenBalanceOracle ) = _popDandelionAppsCache();
 
-        //_createVotingPermissions(_acl, dandelionVoting, dandelionVoting, tokenManager, dandelionVoting);
-        _createRedemptionsPermissions(_acl, redemptions, tokenManager, agentOrVault, dandelionVoting, dandelionVoting);
-        _createTokenRequestPermissions(_acl, tokenRequest, tokenManager, dandelionVoting, dandelionVoting);
-        _createTimeLockPermissions(_acl, timeLock, dandelionVoting, tokenBalanceOracle, dandelionVoting);
-        _createDelayPermissions(_acl, delay, tokenManager, dandelionVoting, dandelionVoting);
-        _createTokenBalanceOraclePermissions(_acl, tokenBalanceOracle, dandelionVoting, dandelionVoting);
-        _createEvmScriptsRegistryPermissions(_acl, dandelionVoting, dandelionVoting);
-        _createVaultPermissions(_acl, agentOrVault, redemptions, dandelionVoting);
         _createDandelionVotingPermissions(_acl, dandelionVoting, delay, timeLock, delay);
-
+        _createRedemptionsPermissions(_acl, redemptions, tokenManager, agentOrVault, delay, delay);
+        _createTokenRequestPermissions(_acl, tokenRequest, tokenManager, delay, delay);
+        _createTimeLockPermissions(_acl, timeLock, delay, tokenBalanceOracle, delay);
+        _createDelayPermissions(_acl, delay, tokenManager, dandelionVoting, delay);
+        _createTokenBalanceOraclePermissions(_acl, tokenBalanceOracle, delay, delay);
+        _createEvmScriptsRegistryPermissions(_acl, dandelionVoting, dandelionVoting);
+        _createVaultPermissions(_acl, agentOrVault, redemptions, delay);
 
         _transferPermissionFromTemplate(_acl, tokenManager, dandelionVoting, tokenManager.MINT_ROLE(), dandelionVoting);
         _transferPermissionFromTemplate(_acl, tokenManager, dandelionVoting, tokenManager.BURN_ROLE(), dandelionVoting);
@@ -481,7 +478,6 @@ contract DandelionOrg is BaseTemplate {
     }
 
     function _popDandelionAppsCache() internal returns (
-        /* TODO: CHANGE THIS FOR DANDELIONVOTING */
         DandelionVoting dandelionVoting,
         Redemptions redemptions,
         TokenRequest tokenRequest,
@@ -493,7 +489,6 @@ contract DandelionOrg is BaseTemplate {
         Cache storage c = cache[msg.sender];
         require(c.dao != address(0), ERROR_MISSING_CACHE);
 
-        //TODO change fot DandelionVoting type
         dandelionVoting = DandelionVoting(c.dandelionVoting);
         redemptions = Redemptions(c.redemptions);
         tokenRequest = TokenRequest(c.tokenRequest);
