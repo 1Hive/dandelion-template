@@ -59,7 +59,7 @@ contract DandelionOrg is BaseTemplate {
     }
 
     /**
-    * @dev Create a new MiniMe token and deploy a Dandelion Org DAO. This function does not allow Payroll
+    * @dev Create a new MiniMe token and deploy a Dandelion Org DAO
     *      to be setup due to gas limits.
     * @param _tokenName String with the name for the token used by share holders in the organization
     * @param _tokenSymbol String with the symbol for the token used by share holders in the organization
@@ -91,6 +91,7 @@ contract DandelionOrg is BaseTemplate {
     * @param _timeLockSettings Array of [_lockDuration, _lockAmount, _spamPenaltyFactor] to set up the timeLock app of the organization
     * @param _votingSettings Array of [supportRequired, minAcceptanceQuorum, voteDuration] to set up the voting app of the organization
     * @param _executionDelay execution delay time to set up the delay app
+    * @param _dissentWindowBlocks window block for the dissent oracle
     */
     function installDandelionApps(
         string _id,
@@ -99,7 +100,8 @@ contract DandelionOrg is BaseTemplate {
         address _timeLockToken,
         uint256[3] _timeLockSettings,
         uint64[4] _votingSettings,
-        uint64 _executionDelay
+        uint64 _executionDelay,
+        uint64 _dissentWindowBlocks
     )
         external
     {
@@ -112,7 +114,17 @@ contract DandelionOrg is BaseTemplate {
         DandelionVoting dandelionVoting = _installDandelionVotingApp(dao, _votingSettings);
         _setupBasePermissions(acl, agentAsVault, dandelionVoting);
 
-        _installDandelionApps(dao, acl, _redemptionsRedeemableTokens, _tokenRequestAcceptedDepositTokens, _timeLockToken, _timeLockSettings, _executionDelay, dandelionVoting);
+        _installDandelionApps(
+            dao,
+            acl,
+            _redemptionsRedeemableTokens,
+            _tokenRequestAcceptedDepositTokens,
+            _timeLockToken,
+            _timeLockSettings,
+            _executionDelay,
+            _dissentWindowBlocks,
+            dandelionVoting
+        );
 
 
         _transferRootPermissionsFromTemplateAndFinalizeDAO(dao, dandelionVoting);
@@ -154,7 +166,6 @@ contract DandelionOrg is BaseTemplate {
 
     }
 
-
     function _setupBaseApps(
         Kernel _dao,
         ACL _acl,
@@ -181,6 +192,7 @@ contract DandelionOrg is BaseTemplate {
         address _timeLockToken,
         uint256[3] memory _timeLockSettings,
         uint64 _executionDelay,
+        uint64 _dissentWindowBlocks,
         DandelionVoting dandelionVoting
     )
         internal
@@ -190,10 +202,10 @@ contract DandelionOrg is BaseTemplate {
         TokenRequest tokenRequest = _installTokenRequestApp(_dao, _tokenRequestAcceptedDepositTokens);
         TimeLock timeLock = _installTimeLockApp(_dao, _timeLockToken, _timeLockSettings);
         Delay delay = _installDelayApp(_dao, _executionDelay);
-        TokenBalanceOracle oracle = _installTokenBalanceOracle(_dao);
-        //DissentOracle dissentOracle = _installDissentOracle(_dao, dandelionVoting);
+        TokenBalanceOracle tokenBalanceoracle = _installTokenBalanceOracle(_dao);
+        DissentOracle dissentOracle = _installDissentOracle(_dao, dandelionVoting, _dissentWindowBlocks);
 
-        _setupDandelionPermissions(_acl,dandelionVoting, redemptions, tokenRequest, timeLock, delay, oracle);
+        _setupDandelionPermissions(_acl,dandelionVoting, redemptions, tokenRequest, timeLock, delay, tokenBalanceoracle, dissentOracle);
     }
 
     /* DANDELION VOTING */
@@ -244,7 +256,6 @@ contract DandelionOrg is BaseTemplate {
         return redemptions;
     }
 
-
     function _createRedemptionsPermissions(
         ACL _acl,
         Redemptions _redemptions,
@@ -262,7 +273,6 @@ contract DandelionOrg is BaseTemplate {
         _acl.grantPermission(_redemptions, _tokenManager, _tokenManager.BURN_ROLE());
 
     }
-
 
     /* TOKEN REQUEST */
 
@@ -343,17 +353,13 @@ contract DandelionOrg is BaseTemplate {
     function _createDelayPermissions(
         ACL _acl,
         Delay _delay,
-        TokenManager _tokenManager,
-        DandelionVoting _voting,
+        address _grantee,
         address _manager
     )
         internal
     {
-        _acl.createPermission(_voting, _delay, _delay.SET_DELAY_ROLE(), _manager);
-        _acl.createPermission(_tokenManager, _delay, _delay.PAUSE_EXECUTION_ROLE(), _manager);
-        _acl.createPermission(_tokenManager, _delay, _delay.RESUME_EXECUTION_ROLE(), _manager);
-        _acl.createPermission(_tokenManager, _delay, _delay.CANCEL_EXECUTION_ROLE(), _manager);
-        _acl.createPermission(_tokenManager, _delay, _delay.DELAY_EXECUTION_ROLE(), _manager);
+        _acl.createPermission(_grantee, _delay, _delay.SET_DELAY_ROLE(), _manager);
+        _acl.createPermission(_grantee, _delay, _delay.DELAY_EXECUTION_ROLE(), _manager);
 
     }
 
@@ -381,22 +387,22 @@ contract DandelionOrg is BaseTemplate {
 
     /* DISSENT ORACLE */
 
-    function _installDissentOracle(Kernel _dao, DandelionVoting dandelionVoting) internal returns (DissentOracle) {
+    function _installDissentOracle(Kernel _dao, DandelionVoting dandelionVoting, uint64 _dissentWindowBlocks) internal returns (DissentOracle) {
         DissentOracle oracle = DissentOracle(_registerApp(_dao, DISSENT_ORACLE_APP_ID));
-        oracle.initialize(dandelionVoting, 5);
+        oracle.initialize(address(dandelionVoting), _dissentWindowBlocks);
         return oracle;
     }
 
     function _createDissentOraclePermissions(
         ACL _acl,
-        TokenBalanceOracle _oracle,
+        DissentOracle _oracle,
         address _grantee,
         address _manager
     )
         internal
     {
-        _acl.createPermission(_grantee, _oracle, _oracle.SET_TOKEN_ROLE(), _manager);
-        _acl.createPermission(_grantee, _oracle, _oracle.SET_MIN_BALANCE_ROLE(), _manager);
+        _acl.createPermission(_grantee, _oracle, _oracle.SET_DANDELION_VOTING_ROLE(), _manager);
+        _acl.createPermission(_grantee, _oracle, _oracle.SET_DISSENT_WINDOW_ROLE(), _manager);
 
     }
 
@@ -424,7 +430,8 @@ contract DandelionOrg is BaseTemplate {
         TokenRequest tokenRequest,
         TimeLock timeLock,
         Delay delay,
-        TokenBalanceOracle tokenBalanceOracle
+        TokenBalanceOracle tokenBalanceOracle,
+        DissentOracle dissentOracle
     )
         internal
         {
@@ -435,8 +442,9 @@ contract DandelionOrg is BaseTemplate {
         _createRedemptionsPermissions(_acl, redemptions, tokenManager, agentOrVault, delay, delay);
         _createTokenRequestPermissions(_acl, tokenRequest, tokenManager, delay, delay);
         _createTimeLockPermissions(_acl, timeLock, delay, tokenBalanceOracle, delay);
-        _createDelayPermissions(_acl, delay, tokenManager, dandelionVoting, delay);
+        _createDelayPermissions(_acl, delay, dandelionVoting, delay);
         _createTokenBalanceOraclePermissions(_acl, tokenBalanceOracle, delay, delay);
+        _createDissentOraclePermissions(_acl, dissentOracle, delay, delay);
         _createEvmScriptsRegistryPermissions(_acl, dandelionVoting, dandelionVoting);
         _createVaultPermissions(_acl, agentOrVault, redemptions, delay);
 
