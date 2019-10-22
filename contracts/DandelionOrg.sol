@@ -28,13 +28,13 @@ contract DandelionOrg is BaseTemplate {
     uint8 constant private TOKEN_DECIMALS = uint8(18);
     uint256 constant private TOKEN_MAX_PER_ACCOUNT = uint256(0);
 
-    bytes32 constant private REDEMPTIONS_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("redemptions")));
-    bytes32 constant private TOKEN_REQUEST_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("token-request")));
-    bytes32 constant private TIME_LOCK_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("time-lock")));
-    bytes32 constant private DELAY_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("delay")));
-    bytes32 constant private TOKEN_BALANCE_ORACLE_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("token-balance-oracle")));
-    bytes32 constant private DANDELION_VOTING_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("dandelion-voting")));
-    bytes32 constant private DISSENT_ORACLE_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("dissent-oracle")));
+    bytes32 constant private REDEMPTIONS_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("redemptions-staging")));
+    bytes32 constant private TOKEN_REQUEST_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("token-request-staging")));
+    bytes32 constant private TIME_LOCK_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("time-lock-staging")));
+    bytes32 constant private DELAY_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("delay-staging")));
+    bytes32 constant private TOKEN_BALANCE_ORACLE_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("token-balance-oracle-staging")));
+    bytes32 constant private DANDELION_VOTING_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("dandelion-voting-staging")));
+    bytes32 constant private DISSENT_ORACLE_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("dissent-oracle-staging")));
 
     address constant ANY_ENTITY = address(-1);
     uint8 constant ORACLE_PARAM_ID = 203;
@@ -202,10 +202,10 @@ contract DandelionOrg is BaseTemplate {
         TokenRequest tokenRequest = _installTokenRequestApp(_dao, _tokenRequestAcceptedDepositTokens);
         TimeLock timeLock = _installTimeLockApp(_dao, _timeLockToken, _timeLockSettings);
         Delay delay = _installDelayApp(_dao, _executionDelay);
-        TokenBalanceOracle tokenBalanceoracle = _installTokenBalanceOracle(_dao);
+        TokenBalanceOracle tokenBalanceOracle = _installTokenBalanceOracle(_dao);
         DissentOracle dissentOracle = _installDissentOracle(_dao, dandelionVoting, _dissentWindowBlocks);
 
-        _setupDandelionPermissions(_acl,dandelionVoting, redemptions, tokenRequest, timeLock, delay, tokenBalanceoracle, dissentOracle);
+        _setupDandelionPermissions(_acl,dandelionVoting, redemptions, tokenRequest, timeLock, delay, tokenBalanceOracle, dissentOracle);
     }
 
     /* DANDELION VOTING */
@@ -448,8 +448,8 @@ contract DandelionOrg is BaseTemplate {
         _createEvmScriptsRegistryPermissions(_acl, dandelionVoting, dandelionVoting);
         _createVaultPermissions(_acl, agentOrVault, redemptions, delay);
 
-        _transferPermissionFromTemplate(_acl, tokenManager, dandelionVoting, tokenManager.MINT_ROLE(), dandelionVoting);
-        _transferPermissionFromTemplate(_acl, tokenManager, dandelionVoting, tokenManager.BURN_ROLE(), dandelionVoting);
+        _transferPermissionFromTemplate(_acl, tokenManager, delay, tokenManager.MINT_ROLE(), delay);
+        _transferPermissionFromTemplate(_acl, tokenManager, delay, tokenManager.BURN_ROLE(), delay);
 
     }
 
