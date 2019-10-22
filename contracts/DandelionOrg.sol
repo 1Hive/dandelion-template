@@ -263,15 +263,20 @@ contract DandelionOrg is BaseTemplate {
         TokenManager _tokenManager,
         Vault _vault,
         address _grantee,
+        DissentOracle _dissentOracle,
         address _manager
     )
         internal
     {
 
-        _acl.createPermission(ANY_ENTITY, _redemptions, _redemptions.REDEEM_ROLE(), _manager);
         _acl.createPermission(_grantee, _redemptions, _redemptions.ADD_TOKEN_ROLE(), _manager);
         _acl.createPermission(_grantee, _redemptions, _redemptions.REMOVE_TOKEN_ROLE(), _manager);
         _acl.grantPermission(_redemptions, _tokenManager, _tokenManager.BURN_ROLE());
+        _acl.createPermission(ANY_ENTITY, _redemptions, _redemptions.REDEEM_ROLE(), address(this));
+        _setOracle(_acl, ANY_ENTITY, _redemptions, _redemptions.REDEEM_ROLE(), _dissentOracle);
+
+        //change manager
+        _acl.setPermissionManager(_manager, _redemptions, _redemptions.REDEEM_ROLE());
 
     }
 
@@ -338,7 +343,7 @@ contract DandelionOrg is BaseTemplate {
         _setOracle(_acl, ANY_ENTITY, _timeLock, _timeLock.LOCK_TOKENS_ROLE(), _tokenBalanceOracle);
 
         //change manager
-        _acl.setPermissionManager(_grantee, _timeLock, _timeLock.LOCK_TOKENS_ROLE());
+        _acl.setPermissionManager(_manager, _timeLock, _timeLock.LOCK_TOKENS_ROLE());
 
     }
 
@@ -441,7 +446,7 @@ contract DandelionOrg is BaseTemplate {
         (TokenManager tokenManager, Vault agentOrVault) = _popBaseAppsCache();
 
 
-        _createRedemptionsPermissions(_acl, redemptions, tokenManager, agentOrVault, delay, delay);
+        _createRedemptionsPermissions(_acl, redemptions, tokenManager, agentOrVault, delay, dissentOracle, delay);
         _createTokenRequestPermissions(_acl, tokenRequest, tokenManager, delay, delay);
         _createTokenBalanceOraclePermissions(_acl, tokenBalanceOracle, delay, delay);
         _createTimeLockPermissions(_acl, timeLock, delay, tokenBalanceOracle, delay);
