@@ -164,7 +164,6 @@ contract DandelionOrg is BaseTemplate {
 
         (Kernel dao, ACL acl) = _createDAO();
         _setupBaseApps(dao, acl, _holders, _stakes, _useAgentAsVault);
-
     }
 
     function _setupBaseApps(
@@ -198,7 +197,6 @@ contract DandelionOrg is BaseTemplate {
     )
         internal
     {
-
         DandelionVoting dandelionVoting = _installDandelionVotingApp(_dao, _votingSettings);
         Redemptions redemptions = _installRedemptionsApp(_dao, _redemptionsRedeemableTokens);
         TokenRequest tokenRequest = _installTokenRequestApp(_dao, _tokenRequestAcceptedDepositTokens);
@@ -277,7 +275,6 @@ contract DandelionOrg is BaseTemplate {
 
         //change manager
         _acl.setPermissionManager(_manager, _redemptions, _redemptions.REDEEM_ROLE());
-
     }
 
     /* TOKEN REQUEST */
@@ -303,7 +300,6 @@ contract DandelionOrg is BaseTemplate {
         _acl.createPermission(_grantee, _tokenRequest, _tokenRequest.SET_VAULT_ROLE(), _manager);
         _acl.createPermission(_grantee, _tokenRequest, _tokenRequest.FINALISE_TOKEN_REQUEST_ROLE(), _manager);
         _acl.grantPermission(_tokenRequest, _tokenManager, _tokenManager.MINT_ROLE());
-
     }
 
     /* TIME LOCK */
@@ -344,7 +340,6 @@ contract DandelionOrg is BaseTemplate {
 
         //change manager
         _acl.setPermissionManager(_manager, _timeLock, _timeLock.LOCK_TOKENS_ROLE());
-
     }
 
     /* DELAY */
@@ -366,7 +361,6 @@ contract DandelionOrg is BaseTemplate {
     {
         _acl.createPermission(_delay, _delay, _delay.SET_DELAY_ROLE(), _manager);
         _acl.createPermission(_grantee, _delay, _delay.DELAY_EXECUTION_ROLE(), _manager);
-
     }
 
     /** TOKEN BALANCE ORACLE */
@@ -388,7 +382,6 @@ contract DandelionOrg is BaseTemplate {
     {
         _acl.createPermission(_grantee, _oracle, _oracle.SET_TOKEN_ROLE(), _manager);
         _acl.createPermission(_grantee, _oracle, _oracle.SET_MIN_BALANCE_ROLE(), _manager);
-
     }
 
     /* DISSENT ORACLE */
@@ -409,7 +402,6 @@ contract DandelionOrg is BaseTemplate {
     {
         _acl.createPermission(_grantee, _oracle, _oracle.SET_DANDELION_VOTING_ROLE(), _manager);
         _acl.createPermission(_grantee, _oracle, _oracle.SET_DISSENT_WINDOW_ROLE(), _manager);
-
     }
 
     function _setupBasePermissions(
@@ -458,7 +450,6 @@ contract DandelionOrg is BaseTemplate {
 
         _transferPermissionFromTemplate(_acl, tokenManager, tokenRequest, tokenManager.MINT_ROLE(), delay);
         _transferPermissionFromTemplate(_acl, tokenManager, redemptions, tokenManager.BURN_ROLE(), delay);
-
     }
 
     function _cacheToken(MiniMeToken _token) internal {
@@ -509,7 +500,6 @@ contract DandelionOrg is BaseTemplate {
         vault = Vault(c.agentOrVault);
     }
 
-
     function _clearCache() internal {
         Cache storage c = cache[msg.sender];
         require(c.dao != address(0), ERROR_MISSING_CACHE);
@@ -545,7 +535,6 @@ contract DandelionOrg is BaseTemplate {
         require(_timeLockSettings.length == 3, ERROR_BAD_TIMELOCK_SETTINGS);
         require(_votingSettings.length == 4, ERROR_BAD_VOTING_SETTINGS);
     }
-
 
     function _registerApp(Kernel _dao, bytes32 _appId) internal returns (address) {
         address proxy = _dao.newAppInstance(_appId, _latestVersionAppBase(_appId));
