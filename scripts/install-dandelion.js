@@ -38,7 +38,7 @@ module.exports = async (
     log("Owner:", owner);
 
     const dandelionOrg = await DandelionOrg.at(
-      "0x14baea2d797d88529ed0e35adb2ae84ccad9b548"
+      "0x58d44cc71c52a9968425a420be69c31eb313486f"
     );
 
     const ONE_DAY = 60 * 60 * 24;
@@ -67,14 +67,14 @@ module.exports = async (
 
     const EXECUTION_DELAY = 50e16;
 
-    const daoID = "company24";
+    const daoID = "company33";
     const acceptedDepositToken = ["0x0000000000000000000000000000000000000000"];
 
     log("before token ");
     const timeLockToken = await ERC20.new(owner, "TEST", "TST", {
       from: owner
     });
-    log("after token");
+    log("after token ", timeLockToken.address);
 
     const receipt = await dandelionOrg.installDandelionApps(
       daoID,

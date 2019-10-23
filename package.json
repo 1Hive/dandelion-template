@@ -37,10 +37,12 @@
     "publish:mainnet": "aragon apm publish major $(npm run deploy:mainnet | tail -n 1) --environment mainnet"
   },
   "dependencies": {
+    "@1hive/apps-dandelion-voting": "^1.0.0",
     "@1hive/apps-delay": "^1.0.0",
-    "@1hive/apps-redemptions": "^1.0.1",
+    "@1hive/apps-redemptions": "^1.0.0",
     "@1hive/apps-time-lock": "^1.0.0",
     "@1hive/apps-token-request": "^1.0.0",
+    "@1hive/oracle-dissent": "^1.0.0",
     "@1hive/oracle-token-balance": "^2.0.0",
     "@aragon/apps-agent": "^2.0.0",
     "@aragon/apps-finance": "^3.0.0",
