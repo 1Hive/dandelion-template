@@ -7,6 +7,11 @@ const globalWeb3 = this.web3; // Not injected unless called directly via truffle
 
 const defaultOwner = process.env.OWNER;
 
+const bigExp = (x, y = 0) => new BN(x).mul(new BN(10).pow(new BN(y)));
+const pct16 = x => bigExp(x, 16);
+
+const ETHER_FAKE_ADDRESS = "0x0000000000000000000000000000000000000000"
+
 module.exports = async (
   truffleExecCallback,
   {
@@ -37,25 +42,31 @@ module.exports = async (
     }
     log("Owner:", owner);
 
-    const dandelionOrg = await DandelionOrg.at(
-      "0x58d44cc71c52a9968425a420be69c31eb313486f"
-    );
+    const dandelionOrgAdress = process.argv[4]
+    const dandelionOrg = await DandelionOrg.at(dandelionOrgAdress)
 
-    const ONE_DAY = 60 * 60 * 24;
-    const ONE_WEEK = ONE_DAY * 7;
+    // General time units 
+    const ONE_HOUR = 60 * 60
+    const ONE_WEEK = ONE_HOUR * 24 * 7;
+    const ONE_HOUR_BLOCKS = Math.round(ONE_HOUR / 15)
+    const ONE_WEEK_BLOCKS = Math.round(ONE_WEEK / 15)
 
-    const VOTE_DURATION = ONE_WEEK;
+    // Voting settings
     const SUPPORT_REQUIRED = 50e16;
     const MIN_ACCEPTANCE_QUORUM = 5e16;
+    const VOTE_DURATION = ONE_WEEK_BLOCKS;
+    const VOTE_BUFFER = ONE_HOUR_BLOCKS
+    const VOTE_EXECUTION_DELAY = ONE_HOUR_BLOCKS
+
     const VOTING_SETTINGS = [
       SUPPORT_REQUIRED,
       MIN_ACCEPTANCE_QUORUM,
-      VOTE_DURATION
+      VOTE_DURATION,
+      VOTE_BUFFER,
+      VOTE_EXECUTION_DELAY
     ];
 
-    const bigExp = (x, y = 0) => new BN(x).mul(new BN(10).pow(new BN(y)));
-    const pct16 = x => bigExp(x, 16);
-
+    // Time Lock settings
     const INITIAL_LOCK_AMOUNT = new BN(10);
     const INITIAL_LOCK_DURATION = 60; // seconds
     const INITIAL_SPAM_PENALTY_FACTOR = pct16(50); // 50%
@@ -65,29 +76,23 @@ module.exports = async (
       INITIAL_SPAM_PENALTY_FACTOR
     ];
 
-    const EXECUTION_DELAY = 50e16;
+    const daoID = "Dandelion1";
+    const acceptedDepositToken = [ETHER_FAKE_ADDRESS];
+    const redeemableTokens = [ETHER_FAKE_ADDRESS];
 
-    const daoID = "company33";
-    const acceptedDepositToken = ["0x0000000000000000000000000000000000000000"];
-
-    log("before token ");
-    const timeLockToken = await ERC20.new(owner, "TEST", "TST", {
+    const timeLockToken = await ERC20.new(owner, "Lock Token", "LKT", {
       from: owner
     });
-    log("after token ", timeLockToken.address);
 
     const receipt = await dandelionOrg.installDandelionApps(
       daoID,
       acceptedDepositToken,
-      acceptedDepositToken,
+      redeemableTokens,
       timeLockToken.address,
       TIME_LOCK_SETTINGS,
       VOTING_SETTINGS,
-      EXECUTION_DELAY,
       { from: owner, gas: 10000000 }
     );
-
-    log("Install receipt: ", receipt);
 
     if (typeof truffleExecCallback === "function") {
       // Called directly via `truffle exec`
