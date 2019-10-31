@@ -76,7 +76,7 @@ module.exports = async (
       INITIAL_SPAM_PENALTY_FACTOR
     ];
 
-    const daoID = "Dandelion1";
+    const daoID = `Dandelion${Math.floor(Math.random() * 100)}`;
     const acceptedDepositToken = [ETHER_FAKE_ADDRESS];
     const redeemableTokens = [ETHER_FAKE_ADDRESS];
 

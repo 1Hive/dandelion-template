@@ -43,9 +43,6 @@ contract DandelionOrg is BaseTemplate {
         address finance;
         address tokenManager;
         address agentOrVault;
-        address dandelionVoting;
-        address redemptions;
-        address tokenRequest;
         bool agentAsVault;
     }
 
@@ -109,7 +106,7 @@ contract DandelionOrg is BaseTemplate {
         ACL acl = ACL(dao.acl());
         bool agentAsVault = _popAgentAsVaultCache();
 
-        _installDandelionApps(
+        (DandelionVoting dandelionVoting, Redemptions redemptions, TokenRequest tokenRequest) = _installDandelionApps(
             dao,
             acl,
             _redemptionsRedeemableTokens,
@@ -119,9 +116,7 @@ contract DandelionOrg is BaseTemplate {
             _votingSettings
         );
 
-        _setupBasePermissions(acl, agentAsVault);
-
-        (DandelionVoting dandelionVoting,,) = _popDandelionAppsCache();
+        _setupBasePermissions(acl, agentAsVault, dandelionVoting, redemptions, tokenRequest);
 
         _createEvmScriptsRegistryPermissions(acl, dandelionVoting, dandelionVoting);
         _transferRootPermissionsFromTemplateAndFinalizeDAO(dao, dandelionVoting);
@@ -190,7 +185,7 @@ contract DandelionOrg is BaseTemplate {
         uint256[3] memory _timeLockSettings,
         uint64[5] _votingSettings
     )
-        internal
+        internal returns (DandelionVoting, Redemptions, TokenRequest)
     {
         DandelionVoting dandelionVoting = _installDandelionVotingApp(_dao, _votingSettings);
         Redemptions redemptions = _installRedemptionsApp(_dao, _redemptionsRedeemableTokens);
@@ -200,8 +195,8 @@ contract DandelionOrg is BaseTemplate {
 
         _setupDandelionPermissions(_acl, dandelionVoting, redemptions, tokenRequest, timeLock, tokenBalanceOracle);
 
-        // Only cache necessary apps
-        _cacheDandelionApps(_dao, dandelionVoting, redemptions, tokenRequest);
+        // Return apps that will be granted base app permissions
+        return (dandelionVoting, redemptions, tokenRequest);
     }
 
     /* DANDELION VOTING */
@@ -360,12 +355,14 @@ contract DandelionOrg is BaseTemplate {
     // PERMISSIONS FNS
     function _setupBasePermissions(
         ACL _acl,
-        bool _useAgentAsVault
+        bool _useAgentAsVault,
+        DandelionVoting dandelionVoting,
+        Redemptions redemptions,
+        TokenRequest tokenRequest
     )
         internal
     {
         (Finance finance, TokenManager tokenManager, Vault agentOrVault) = _popBaseAppsCache();
-        (DandelionVoting dandelionVoting, Redemptions redemptions, TokenRequest tokenRequest) = _popDandelionAppsCache();
 
         // Finance permissions
         _createFinancePermissions(_acl, finance, dandelionVoting, dandelionVoting);
@@ -415,14 +412,6 @@ contract DandelionOrg is BaseTemplate {
         c.agentOrVault = address(_vault);
     }
 
-    function _cacheDandelionApps(Kernel _dao, DandelionVoting _dandelionVoting, Redemptions _redemptions, TokenRequest _tokenRequest) internal {
-        Cache storage c = cache[msg.sender];
-
-        c.dandelionVoting = address(_dandelionVoting);
-        c.redemptions = address(_redemptions);
-        c.tokenRequest = address(_tokenRequest);
-    }
-
     function _popTokenCache() internal returns (MiniMeToken) {
         Cache storage c = cache[msg.sender];
         require(c.token != address(0), ERROR_MISSING_TOKEN_CACHE);
@@ -459,21 +448,6 @@ contract DandelionOrg is BaseTemplate {
         vault = Vault(c.agentOrVault);
     }
 
-    function _popDandelionAppsCache() internal returns
-    (
-        DandelionVoting dandelionVoting,
-        Redemptions redemptions,
-        TokenRequest tokenRequest
-    )
-    {
-        Cache storage c = cache[msg.sender];
-        require(c.dao != address(0), ERROR_MISSING_CACHE);
-
-        dandelionVoting = DandelionVoting(c.dandelionVoting);
-        redemptions = Redemptions(c.redemptions);
-        tokenRequest = TokenRequest(c.tokenRequest);
-    }
-
     function _clearCache() internal {
         Cache storage c = cache[msg.sender];
         require(c.dao != address(0), ERROR_MISSING_CACHE);
@@ -483,9 +457,6 @@ contract DandelionOrg is BaseTemplate {
         delete c.finance;
         delete c.tokenManager;
         delete c.agentOrVault;
-        delete c.dandelionVoting;
-        delete c.redemptions;
-        delete c.tokenRequest;
         delete c.agentAsVault;
     }
 
