@@ -12,10 +12,10 @@
       "wsRPC": "wss://mainnet.eth.aragon.network/ws"
     },
     "rinkeby": {
-      "appName": "dandelion-org-template.aragonpm.eth",
-      "address": "0x26a06d1f870ada7168db4b9cabb84f49480f215b",
+      "appName": "dandelion-org-template.open.aragonpm.eth",
       "network": "rinkeby",
-      "registry": "0x98Df287B6C145399Aaa709692c8D308357bC085D"
+      "registry": "0x98Df287B6C145399Aaa709692c8D308357bC085D",
+      "wsRPC": "wss://rinkeby.eth.aragon.network/ws"
     },
     "ropsten": {
       "appName": "dandelion-org-template.open.aragonpm.eth",

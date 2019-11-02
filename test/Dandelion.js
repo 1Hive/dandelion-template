@@ -298,6 +298,8 @@ contract('Dandelion', ([_, owner, holder1, holder2, notHolder, someone]) => {
       assert.equal(web3.toChecksumAddress(await dao.getRecoveryVault()), vault.address, 'vault app is not being used as the vault app of the DAO')
 
       await assertRole(acl, vault, dandelionVoting, 'TRANSFER_ROLE', finance)
+      await assertRole(acl, vault, dandelionVoting, 'TRANSFER_ROLE', redemptions)
+      await assertRoleNotGranted(acl, vault, 'TRANSFER_ROLE', template)
     })
   }
 
