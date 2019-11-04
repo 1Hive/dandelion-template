@@ -14,24 +14,21 @@ import "openzeppelin-solidity/contracts/token/ERC20/ERC20Detailed.sol";
 contract DandelionOrg is BaseTemplate {
     string constant private ERROR_EMPTY_HOLDERS = "DANDELION_EMPTY_HOLDERS";
     string constant private ERROR_BAD_HOLDERS_STAKES_LEN = "DANDELION_BAD_HOLDERS_STAKES_LEN";
-    string constant private ERROR_BAD_VOTE_SETTINGS = "DANDELION_BAD_VOTE_SETTINGS";
     string constant private ERROR_MISSING_CACHE = "DANDELION_MISSING_CACHE";
     string constant private ERROR_MISSING_TOKEN_CACHE = "DANDELION_MISSING_TOKEN_CACHE";
     string constant private ERROR_BAD_TOKENREQUEST_TOKEN_LIST = "DANDELION_BAD_TOKENREQUEST_TOKEN_LIST";
     string constant private ERROR_TIMELOCK_TOKEN_NOT_CONTRACT = "DANDELION_TIMELOCK_TOKEN_NOT_CONTRACT";
-    string constant private ERROR_BAD_TIMELOCK_SETTINGS = "DANDELION_BAD_TIMELOCK_SETTINGS";
-    string constant private ERROR_BAD_VOTING_SETTINGS = "DANDELION_BAD_VOTING_SETTINGS";
 
     bool constant private TOKEN_TRANSFERABLE = false;
     uint8 constant private TOKEN_DECIMALS = uint8(18);
     uint256 constant private TOKEN_MAX_PER_ACCOUNT = uint256(0);
     uint64 constant private DEFAULT_FINANCE_PERIOD = uint64(30 days);
 
-    bytes32 constant private DANDELION_VOTING_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("dandelion-voting-staging")));
-    bytes32 constant private REDEMPTIONS_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("redemptions-staging")));
-    bytes32 constant private TIME_LOCK_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("time-lock-staging")));
-    bytes32 constant private TOKEN_REQUEST_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("token-request-staging")));
-    bytes32 constant private TOKEN_BALANCE_ORACLE_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("token-balance-oracle-staging")));
+    bytes32 constant private DANDELION_VOTING_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("dandelion-voting")));
+    bytes32 constant private REDEMPTIONS_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("redemptions")));
+    bytes32 constant private TIME_LOCK_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("time-lock")));
+    bytes32 constant private TOKEN_REQUEST_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("token-request")));
+    bytes32 constant private TOKEN_BALANCE_ORACLE_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("token-balance-oracle")));
 
     address constant ANY_ENTITY = address(-1);
     uint8 constant ORACLE_PARAM_ID = 203;
@@ -88,7 +85,7 @@ contract DandelionOrg is BaseTemplate {
     * @param _tokenRequestAcceptedDepositTokens address[] with the list of accepted deposit tokens for token request
     * @param _timeLockToken Address of the token for the lock app`
     * @param _timeLockSettings Array of [_lockDuration, _lockAmount, _spamPenaltyFactor] to set up the timeLock app of the organization
-    * @param _votingSettings Array of [supportRequired, minAcceptanceQuorum, voteDuration] to set up the voting app of the organization
+    * @param _votingSettings Array of [supportRequired, minAcceptanceQuorum, voteDuration, voteBuffer, voteDelay] to set up the voting app of the organization
     */
     function installDandelionApps(
         string _id,
@@ -100,7 +97,7 @@ contract DandelionOrg is BaseTemplate {
     )
         external
     {
-        _ensureDandelionSettings(_tokenRequestAcceptedDepositTokens, _timeLockToken, _timeLockSettings, _votingSettings);
+        _ensureDandelionSettings(_tokenRequestAcceptedDepositTokens, _timeLockToken);
         _ensureBaseAppsCache();
 
         Kernel dao = _popDaoCache();
@@ -493,16 +490,12 @@ contract DandelionOrg is BaseTemplate {
 
     function _ensureDandelionSettings(
         address[] memory _tokenRequestAcceptedDepositTokens,
-        address _timeLockToken,
-        uint256[3] memory _timeLockSettings,
-        uint64[5] memory _votingSettings
+        address _timeLockToken
     )
         private
     {
         require(_tokenRequestAcceptedDepositTokens.length > 0, ERROR_BAD_TOKENREQUEST_TOKEN_LIST);
         require(isContract(_timeLockToken), ERROR_TIMELOCK_TOKEN_NOT_CONTRACT);
-        require(_timeLockSettings.length == 3, ERROR_BAD_TIMELOCK_SETTINGS);
-        require(_votingSettings.length == 5, ERROR_BAD_VOTING_SETTINGS);
     }
 
     function _registerApp(Kernel _dao, bytes32 _appId) private returns (address) {
