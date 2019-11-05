@@ -14,18 +14,15 @@ import "openzeppelin-solidity/contracts/token/ERC20/ERC20Detailed.sol";
 contract DandelionOrg is BaseTemplate {
     string constant private ERROR_EMPTY_HOLDERS = "DANDELION_EMPTY_HOLDERS";
     string constant private ERROR_BAD_HOLDERS_STAKES_LEN = "DANDELION_BAD_HOLDERS_STAKES_LEN";
-    string constant private ERROR_BAD_VOTE_SETTINGS = "DANDELION_BAD_VOTE_SETTINGS";
     string constant private ERROR_MISSING_CACHE = "DANDELION_MISSING_CACHE";
     string constant private ERROR_MISSING_TOKEN_CACHE = "DANDELION_MISSING_TOKEN_CACHE";
     string constant private ERROR_BAD_TOKENREQUEST_TOKEN_LIST = "DANDELION_BAD_TOKENREQUEST_TOKEN_LIST";
     string constant private ERROR_TIMELOCK_TOKEN_NOT_CONTRACT = "DANDELION_TIMELOCK_TOKEN_NOT_CONTRACT";
-    string constant private ERROR_BAD_TIMELOCK_SETTINGS = "DANDELION_BAD_TIMELOCK_SETTINGS";
-    string constant private ERROR_BAD_VOTING_SETTINGS = "DANDELION_BAD_VOTING_SETTINGS";
 
     bool constant private TOKEN_TRANSFERABLE = false;
     uint8 constant private TOKEN_DECIMALS = uint8(18);
     uint256 constant private TOKEN_MAX_PER_ACCOUNT = uint256(0);
-    uint64 constant private FINANCE_PERIOD = uint64(30 days);
+    uint64 constant private DEFAULT_FINANCE_PERIOD = uint64(30 days);
 
     bytes32 constant private DANDELION_VOTING_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("dandelion-voting")));
     bytes32 constant private REDEMPTIONS_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("redemptions")));
@@ -72,12 +69,13 @@ contract DandelionOrg is BaseTemplate {
         string _id,
         address[] _holders,
         uint256[] _stakes,
+        uint64 _financePeriod,
         bool _useAgentAsVault
     )
         external
     {
         newToken(_tokenName, _tokenSymbol);
-        newBaseInstance(_id, _holders, _stakes, _useAgentAsVault);
+        newBaseInstance(_id, _holders, _stakes, _financePeriod, _useAgentAsVault);
     }
 
     /**
@@ -87,7 +85,7 @@ contract DandelionOrg is BaseTemplate {
     * @param _tokenRequestAcceptedDepositTokens address[] with the list of accepted deposit tokens for token request
     * @param _timeLockToken Address of the token for the lock app`
     * @param _timeLockSettings Array of [_lockDuration, _lockAmount, _spamPenaltyFactor] to set up the timeLock app of the organization
-    * @param _votingSettings Array of [supportRequired, minAcceptanceQuorum, voteDuration] to set up the voting app of the organization
+    * @param _votingSettings Array of [supportRequired, minAcceptanceQuorum, voteDuration, voteBuffer, voteDelay] to set up the voting app of the organization
     */
     function installDandelionApps(
         string _id,
@@ -99,7 +97,7 @@ contract DandelionOrg is BaseTemplate {
     )
         external
     {
-        _ensureDandelionSettings(_tokenRequestAcceptedDepositTokens, _timeLockToken, _timeLockSettings, _votingSettings);
+        _ensureDandelionSettings(_tokenRequestAcceptedDepositTokens, _timeLockToken);
         _ensureBaseAppsCache();
 
         Kernel dao = _popDaoCache();
@@ -146,6 +144,7 @@ contract DandelionOrg is BaseTemplate {
         string memory _id,
         address[] memory _holders,
         uint256[] memory _stakes,
+        uint64 _financePeriod,
         bool _useAgentAsVault
     )
         public
@@ -154,7 +153,7 @@ contract DandelionOrg is BaseTemplate {
         _ensureBaseSettings(_holders, _stakes);
 
         (Kernel dao, ACL acl) = _createDAO();
-        _setupBaseApps(dao, acl, _holders, _stakes, _useAgentAsVault);
+        _setupBaseApps(dao, acl, _holders, _stakes, _financePeriod, _useAgentAsVault);
     }
 
     function _setupBaseApps(
@@ -162,6 +161,7 @@ contract DandelionOrg is BaseTemplate {
         ACL _acl,
         address[] memory _holders,
         uint256[] memory _stakes,
+        uint64 _financePeriod,
         bool _useAgentAsVault
     )
         internal
@@ -169,10 +169,11 @@ contract DandelionOrg is BaseTemplate {
         MiniMeToken token = _popTokenCache();
         Vault agentOrVault = _useAgentAsVault ? _installDefaultAgentApp(_dao) : _installVaultApp(_dao);
         TokenManager tokenManager = _installTokenManagerApp(_dao, token, TOKEN_TRANSFERABLE, TOKEN_MAX_PER_ACCOUNT);
-        Finance finance = _installFinanceApp(_dao, agentOrVault, FINANCE_PERIOD);
+        Finance finance = _installFinanceApp(_dao, agentOrVault, _financePeriod == 0 ? DEFAULT_FINANCE_PERIOD : _financePeriod);
 
         _mintTokens(_acl, tokenManager, _holders, _stakes);
         _cacheBaseApps(_dao, finance, tokenManager, agentOrVault);
+        _cacheAgentAsVault(_dao, _useAgentAsVault);
 
     }
 
@@ -288,6 +289,7 @@ contract DandelionOrg is BaseTemplate {
     {
         _acl.createPermission(_grantee, _tokenRequest, _tokenRequest.SET_TOKEN_MANAGER_ROLE(), _manager);
         _acl.createPermission(_grantee, _tokenRequest, _tokenRequest.SET_VAULT_ROLE(), _manager);
+        _acl.createPermission(_grantee, _tokenRequest, _tokenRequest.MODIFY_TOKENS_ROLE(), _manager);
         _acl.createPermission(_grantee, _tokenRequest, _tokenRequest.FINALISE_TOKEN_REQUEST_ROLE(), _manager);
     }
 
@@ -376,7 +378,15 @@ contract DandelionOrg is BaseTemplate {
         if (_useAgentAsVault) {
             _createAgentPermissions(_acl, Agent(agentOrVault), dandelionVoting, dandelionVoting);
         }
-        _createVaultPermissions(_acl, agentOrVault, redemptions, dandelionVoting);
+
+        _createVaultPermissions(_acl, agentOrVault, finance, address(this));
+        _acl.grantPermission(redemptions, agentOrVault, agentOrVault.TRANSFER_ROLE());
+
+        //change manager
+        _acl.setPermissionManager(dandelionVoting, agentOrVault, agentOrVault.TRANSFER_ROLE());
+
+
+
     }
 
     function _setupDandelionPermissions(
@@ -412,12 +422,10 @@ contract DandelionOrg is BaseTemplate {
         c.agentOrVault = address(_vault);
     }
 
-    function _popTokenCache() internal returns (MiniMeToken) {
+    function _cacheAgentAsVault(Kernel _dao, bool _agentAsVault) internal {
         Cache storage c = cache[msg.sender];
-        require(c.token != address(0), ERROR_MISSING_TOKEN_CACHE);
 
-        MiniMeToken token = MiniMeToken(c.token);
-        return token;
+        c.agentAsVault = _agentAsVault;
     }
 
     function _popDaoCache() internal returns (Kernel dao) {
@@ -427,11 +435,12 @@ contract DandelionOrg is BaseTemplate {
         dao = Kernel(c.dao);
     }
 
-    function _popAgentAsVaultCache() internal returns (bool agentAsVault) {
+    function _popTokenCache() internal returns (MiniMeToken) {
         Cache storage c = cache[msg.sender];
-        require(c.dao != address(0), ERROR_MISSING_CACHE);
+        require(c.token != address(0), ERROR_MISSING_TOKEN_CACHE);
 
-        agentAsVault = c.agentAsVault;
+        MiniMeToken token = MiniMeToken(c.token);
+        return token;
     }
 
     function _popBaseAppsCache() internal returns (
@@ -446,6 +455,13 @@ contract DandelionOrg is BaseTemplate {
         finance = Finance(c.finance);
         tokenManager = TokenManager(c.tokenManager);
         vault = Vault(c.agentOrVault);
+    }
+
+    function _popAgentAsVaultCache() internal returns (bool agentAsVault) {
+        Cache storage c = cache[msg.sender];
+        require(c.dao != address(0), ERROR_MISSING_CACHE);
+
+        agentAsVault = c.agentAsVault;
     }
 
     function _clearCache() internal {
@@ -474,16 +490,12 @@ contract DandelionOrg is BaseTemplate {
 
     function _ensureDandelionSettings(
         address[] memory _tokenRequestAcceptedDepositTokens,
-        address _timeLockToken,
-        uint256[3] memory _timeLockSettings,
-        uint64[5] memory _votingSettings
+        address _timeLockToken
     )
         private
     {
         require(_tokenRequestAcceptedDepositTokens.length > 0, ERROR_BAD_TOKENREQUEST_TOKEN_LIST);
         require(isContract(_timeLockToken), ERROR_TIMELOCK_TOKEN_NOT_CONTRACT);
-        require(_timeLockSettings.length == 3, ERROR_BAD_TIMELOCK_SETTINGS);
-        require(_votingSettings.length == 5, ERROR_BAD_VOTING_SETTINGS);
     }
 
     function _registerApp(Kernel _dao, bytes32 _appId) private returns (address) {
