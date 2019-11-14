@@ -14,7 +14,10 @@ import "openzeppelin-solidity/contracts/token/ERC20/ERC20Detailed.sol";
 contract DandelionOrg is BaseTemplate {
     string constant private ERROR_EMPTY_HOLDERS = "DANDELION_EMPTY_HOLDERS";
     string constant private ERROR_BAD_HOLDERS_STAKES_LEN = "DANDELION_BAD_HOLDERS_STAKES_LEN";
-    string constant private ERROR_MISSING_CONTRACT = "DANDELION_MISSING_CONTRACT";
+    string constant private ERROR_MISSING_DAO_CONTRACT = "DANDELION_MISSING_DAO_CONTRACT";
+    string constant private ERROR_MISSING_FINANCE_CONTRACT = "DANDELION_MISSING_FINANCE_CONTRACT";
+    string constant private ERROR_MISSING_TOKEN_MANAGER_CONTRACT = "DANDELION_MISSING_TOKEN_MANAGER_CONTRACT";
+    string constant private ERROR_MISSING_VAULT_CONTRACT = "DANDELION_MISSING_VAULT_CONTRACT";
     string constant private ERROR_MISSING_TOKEN_CONTRACT = "DANDELION_MISSING_TOKEN_CONTRACT";
     string constant private ERROR_BAD_TOKENREQUEST_TOKEN_LIST = "DANDELION_BAD_TOKENREQUEST_TOKEN_LIST";
     string constant private ERROR_TIMELOCK_TOKEN_NOT_CONTRACT = "DANDELION_TIMELOCK_TOKEN_NOT_CONTRACT";
@@ -430,7 +433,7 @@ contract DandelionOrg is BaseTemplate {
 
     function _getDao() internal returns (Kernel dao) {
         DeployedContracts storage contracts = deployedContracts[msg.sender];
-        require(contracts.dao != address(0), ERROR_MISSING_CONTRACT);
+        require(contracts.dao != address(0), ERROR_MISSING_DAO_CONTRACT);
 
         dao = Kernel(contracts.dao);
     }
@@ -450,7 +453,7 @@ contract DandelionOrg is BaseTemplate {
     )
     {
         DeployedContracts storage contracts = deployedContracts[msg.sender];
-        require(contracts.dao != address(0), ERROR_MISSING_CONTRACT);
+        require(contracts.dao != address(0), ERROR_MISSING_DAO_CONTRACT);
 
         finance = Finance(contracts.finance);
         tokenManager = TokenManager(contracts.tokenManager);
@@ -459,14 +462,14 @@ contract DandelionOrg is BaseTemplate {
 
     function _getAgentAsVault() internal returns (bool agentAsVault) {
         DeployedContracts storage contracts = deployedContracts[msg.sender];
-        require(contracts.dao != address(0), ERROR_MISSING_CONTRACT);
+        require(contracts.dao != address(0), ERROR_MISSING_DAO_CONTRACT);
 
         agentAsVault = contracts.agentAsVault;
     }
 
     function _clearDeployedContracts() internal {
         DeployedContracts storage contracts = deployedContracts[msg.sender];
-        require(contracts.dao != address(0), ERROR_MISSING_CONTRACT);
+        require(contracts.dao != address(0), ERROR_MISSING_DAO_CONTRACT);
 
         delete contracts.dao;
         delete contracts.token;
@@ -478,9 +481,9 @@ contract DandelionOrg is BaseTemplate {
 
     function _ensureBaseAppsDeployed() internal {
         DeployedContracts storage contracts = deployedContracts[msg.sender];
-        require(contracts.finance != address(0), ERROR_MISSING_CONTRACT);
-        require(contracts.tokenManager != address(0), ERROR_MISSING_CONTRACT);
-        require(contracts.agentOrVault != address(0), ERROR_MISSING_CONTRACT);
+        require(contracts.finance != address(0), ERROR_MISSING_FINANCE_CONTRACT);
+        require(contracts.tokenManager != address(0), ERROR_MISSING_TOKEN_MANAGER_CONTRACT);
+        require(contracts.agentOrVault != address(0), ERROR_MISSING_VAULT_CONTRACT);
     }
 
     function _ensureBaseSettings(address[] memory _holders, uint256[] memory _stakes) private pure {
