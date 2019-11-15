@@ -411,38 +411,38 @@ contract DandelionOrg is BaseTemplate {
 
     // SAVE FNS
     function _saveToken(MiniMeToken _token) internal {
-        DeployedContracts storage contracts = deployedContracts[msg.sender];
+        DeployedContracts storage senderDeployedContracts = deployedContracts[msg.sender];
 
-        contracts.token = address(_token);
+        senderDeployedContracts.token = address(_token);
     }
 
     function _saveBaseApps(Kernel _dao,  Finance _finance, TokenManager _tokenManager, Vault _vault) internal {
-        DeployedContracts storage contracts = deployedContracts[msg.sender];
+        DeployedContracts storage senderDeployedContracts = deployedContracts[msg.sender];
 
-        contracts.dao = address(_dao);
-        contracts.finance = address(_finance);
-        contracts.tokenManager = address(_tokenManager);
-        contracts.agentOrVault = address(_vault);
+        senderDeployedContracts.dao = address(_dao);
+        senderDeployedContracts.finance = address(_finance);
+        senderDeployedContracts.tokenManager = address(_tokenManager);
+        senderDeployedContracts.agentOrVault = address(_vault);
     }
 
     function _saveAgentAsVault(Kernel _dao, bool _agentAsVault) internal {
-        DeployedContracts storage contracts = deployedContracts[msg.sender];
+        DeployedContracts storage senderDeployedContracts = deployedContracts[msg.sender];
 
-        contracts.agentAsVault = _agentAsVault;
+        senderDeployedContracts.agentAsVault = _agentAsVault;
     }
 
     function _getDao() internal returns (Kernel dao) {
-        DeployedContracts storage contracts = deployedContracts[msg.sender];
-        require(contracts.dao != address(0), ERROR_MISSING_DAO_CONTRACT);
+        DeployedContracts storage senderDeployedContracts = deployedContracts[msg.sender];
+        require(senderDeployedContracts.dao != address(0), ERROR_MISSING_DAO_CONTRACT);
 
-        dao = Kernel(contracts.dao);
+        dao = Kernel(senderDeployedContracts.dao);
     }
 
     function _getToken() internal returns (MiniMeToken) {
-        DeployedContracts storage contracts = deployedContracts[msg.sender];
-        require(contracts.token != address(0), ERROR_MISSING_TOKEN_CONTRACT);
+        DeployedContracts storage senderDeployedContracts = deployedContracts[msg.sender];
+        require(senderDeployedContracts.token != address(0), ERROR_MISSING_TOKEN_CONTRACT);
 
-        MiniMeToken token = MiniMeToken(contracts.token);
+        MiniMeToken token = MiniMeToken(senderDeployedContracts.token);
         return token;
     }
 
@@ -452,38 +452,38 @@ contract DandelionOrg is BaseTemplate {
         Vault vault
     )
     {
-        DeployedContracts storage contracts = deployedContracts[msg.sender];
-        require(contracts.dao != address(0), ERROR_MISSING_DAO_CONTRACT);
+        DeployedContracts storage senderDeployedContracts = deployedContracts[msg.sender];
+        require(senderDeployedContracts.dao != address(0), ERROR_MISSING_DAO_CONTRACT);
 
-        finance = Finance(contracts.finance);
-        tokenManager = TokenManager(contracts.tokenManager);
-        vault = Vault(contracts.agentOrVault);
+        finance = Finance(senderDeployedContracts.finance);
+        tokenManager = TokenManager(senderDeployedContracts.tokenManager);
+        vault = Vault(senderDeployedContracts.agentOrVault);
     }
 
     function _getAgentAsVault() internal returns (bool agentAsVault) {
-        DeployedContracts storage contracts = deployedContracts[msg.sender];
-        require(contracts.dao != address(0), ERROR_MISSING_DAO_CONTRACT);
+        DeployedContracts storage senderDeployedContracts = deployedContracts[msg.sender];
+        require(senderDeployedContracts.dao != address(0), ERROR_MISSING_DAO_CONTRACT);
 
-        agentAsVault = contracts.agentAsVault;
+        agentAsVault = senderDeployedContracts.agentAsVault;
     }
 
     function _clearDeployedContracts() internal {
-        DeployedContracts storage contracts = deployedContracts[msg.sender];
-        require(contracts.dao != address(0), ERROR_MISSING_DAO_CONTRACT);
+        DeployedContracts storage senderDeployedContracts = deployedContracts[msg.sender];
+        require(senderDeployedContracts.dao != address(0), ERROR_MISSING_DAO_CONTRACT);
 
-        delete contracts.dao;
-        delete contracts.token;
-        delete contracts.finance;
-        delete contracts.tokenManager;
-        delete contracts.agentOrVault;
-        delete contracts.agentAsVault;
+        delete senderDeployedContracts.dao;
+        delete senderDeployedContracts.token;
+        delete senderDeployedContracts.finance;
+        delete senderDeployedContracts.tokenManager;
+        delete senderDeployedContracts.agentOrVault;
+        delete senderDeployedContracts.agentAsVault;
     }
 
     function _ensureBaseAppsDeployed() internal {
-        DeployedContracts storage contracts = deployedContracts[msg.sender];
-        require(contracts.finance != address(0), ERROR_MISSING_FINANCE_CONTRACT);
-        require(contracts.tokenManager != address(0), ERROR_MISSING_TOKEN_MANAGER_CONTRACT);
-        require(contracts.agentOrVault != address(0), ERROR_MISSING_VAULT_CONTRACT);
+        DeployedContracts storage senderDeployedContracts = deployedContracts[msg.sender];
+        require(senderDeployedContracts.finance != address(0), ERROR_MISSING_FINANCE_CONTRACT);
+        require(senderDeployedContracts.tokenManager != address(0), ERROR_MISSING_TOKEN_MANAGER_CONTRACT);
+        require(senderDeployedContracts.agentOrVault != address(0), ERROR_MISSING_VAULT_CONTRACT);
     }
 
     function _ensureBaseSettings(address[] memory _holders, uint256[] memory _stakes) private pure {
