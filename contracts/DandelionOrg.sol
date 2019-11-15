@@ -14,8 +14,11 @@ import "openzeppelin-solidity/contracts/token/ERC20/ERC20Detailed.sol";
 contract DandelionOrg is BaseTemplate {
     string constant private ERROR_EMPTY_HOLDERS = "DANDELION_EMPTY_HOLDERS";
     string constant private ERROR_BAD_HOLDERS_STAKES_LEN = "DANDELION_BAD_HOLDERS_STAKES_LEN";
-    string constant private ERROR_MISSING_CACHE = "DANDELION_MISSING_CACHE";
-    string constant private ERROR_MISSING_TOKEN_CACHE = "DANDELION_MISSING_TOKEN_CACHE";
+    string constant private ERROR_MISSING_DAO_CONTRACT = "DANDELION_MISSING_DAO_CONTRACT";
+    string constant private ERROR_MISSING_FINANCE_CONTRACT = "DANDELION_MISSING_FINANCE_CONTRACT";
+    string constant private ERROR_MISSING_TOKEN_MANAGER_CONTRACT = "DANDELION_MISSING_TOKEN_MANAGER_CONTRACT";
+    string constant private ERROR_MISSING_VAULT_CONTRACT = "DANDELION_MISSING_VAULT_CONTRACT";
+    string constant private ERROR_MISSING_TOKEN_CONTRACT = "DANDELION_MISSING_TOKEN_CONTRACT";
     string constant private ERROR_BAD_TOKENREQUEST_TOKEN_LIST = "DANDELION_BAD_TOKENREQUEST_TOKEN_LIST";
     string constant private ERROR_TIMELOCK_TOKEN_NOT_CONTRACT = "DANDELION_TIMELOCK_TOKEN_NOT_CONTRACT";
 
@@ -34,7 +37,7 @@ contract DandelionOrg is BaseTemplate {
     uint8 constant ORACLE_PARAM_ID = 203;
     enum Op { NONE, EQ, NEQ, GT, LT, GTE, LTE, RET, NOT, AND, OR, XOR, IF_ELSE }
 
-    struct Cache {
+    struct DeployedContracts {
         address dao;
         address token;
         address finance;
@@ -43,7 +46,7 @@ contract DandelionOrg is BaseTemplate {
         bool agentAsVault;
     }
 
-    mapping (address => Cache) internal cache;
+    mapping (address => DeployedContracts) internal deployedContracts;
 
     constructor(DAOFactory _daoFactory, ENS _ens, MiniMeTokenFactory _miniMeFactory, IFIFSResolvingRegistrar _aragonID)
         BaseTemplate(_daoFactory, _ens, _miniMeFactory, _aragonID)
@@ -98,11 +101,11 @@ contract DandelionOrg is BaseTemplate {
         external
     {
         _ensureDandelionSettings(_tokenRequestAcceptedDepositTokens, _timeLockToken);
-        _ensureBaseAppsCache();
+        _ensureBaseAppsDeployed();
 
-        Kernel dao = _popDaoCache();
+        Kernel dao = _getDao();
         ACL acl = ACL(dao.acl());
-        bool agentAsVault = _popAgentAsVaultCache();
+        bool agentAsVault = _getAgentAsVault();
 
         (DandelionVoting dandelionVoting, Redemptions redemptions, TokenRequest tokenRequest) = _installDandelionApps(
             dao,
@@ -119,22 +122,22 @@ contract DandelionOrg is BaseTemplate {
         _createEvmScriptsRegistryPermissions(acl, dandelionVoting, dandelionVoting);
         _transferRootPermissionsFromTemplateAndFinalizeDAO(dao, dandelionVoting);
         _registerID(_id, address(dao));
-        _clearCache();
+        _clearDeployedContracts();
     }
 
     /**
-    * @dev Create a new MiniMe token and cache it for the user
+    * @dev Create a new MiniMe token and save it for the user
     * @param _name String with the name for the token used by share holders in the organization
     * @param _symbol String with the symbol for the token used by share holders in the organization
     */
     function newToken(string memory _name, string memory _symbol) public returns (MiniMeToken) {
         MiniMeToken token = _createToken(_name, _symbol, TOKEN_DECIMALS);
-        _cacheToken(token);
+        _saveToken(token);
         return token;
     }
 
     /**
-    * @dev Deploy a Dandelion Org DAO using a previously cached MiniMe token
+    * @dev Deploy a Dandelion Org DAO using a previously saved MiniMe token
     * @param _id String with the name for org, will assign `[id].aragonid.eth`
     * @param _holders Array of token holder addresses
     * @param _stakes Array of token stakes for holders (token has 18 decimals, multiply token amount `* 10^18`)
@@ -166,14 +169,14 @@ contract DandelionOrg is BaseTemplate {
     )
         internal
     {
-        MiniMeToken token = _popTokenCache();
+        MiniMeToken token = _getToken();
         Vault agentOrVault = _useAgentAsVault ? _installDefaultAgentApp(_dao) : _installVaultApp(_dao);
         TokenManager tokenManager = _installTokenManagerApp(_dao, token, TOKEN_TRANSFERABLE, TOKEN_MAX_PER_ACCOUNT);
         Finance finance = _installFinanceApp(_dao, agentOrVault, _financePeriod == 0 ? DEFAULT_FINANCE_PERIOD : _financePeriod);
 
         _mintTokens(_acl, tokenManager, _holders, _stakes);
-        _cacheBaseApps(_dao, finance, tokenManager, agentOrVault);
-        _cacheAgentAsVault(_dao, _useAgentAsVault);
+        _saveBaseApps(_dao, finance, tokenManager, agentOrVault);
+        _saveAgentAsVault(_dao, _useAgentAsVault);
 
     }
 
@@ -203,7 +206,7 @@ contract DandelionOrg is BaseTemplate {
     /* DANDELION VOTING */
 
     function _installDandelionVotingApp(Kernel _dao, uint64[5] memory _votingSettings) internal returns (DandelionVoting) {
-        MiniMeToken token = _popTokenCache();
+        MiniMeToken token = _getToken();
         return _installDandelionVotingApp(_dao, token, _votingSettings[0], _votingSettings[1], _votingSettings[2], _votingSettings[3], _votingSettings[4]);
     }
 
@@ -244,7 +247,7 @@ contract DandelionOrg is BaseTemplate {
 
     function _installRedemptionsApp(Kernel _dao, address[] memory _redemptionsRedeemableTokens) internal returns (Redemptions) {
 
-        (, TokenManager tokenManager, Vault vault) = _popBaseAppsCache();
+        (, TokenManager tokenManager, Vault vault) = _getBaseApps();
         Redemptions redemptions = Redemptions(_registerApp(_dao, REDEMPTIONS_APP_ID));
         redemptions.initialize(vault, tokenManager, _redemptionsRedeemableTokens);
         return redemptions;
@@ -273,7 +276,7 @@ contract DandelionOrg is BaseTemplate {
 
     function _installTokenRequestApp(Kernel _dao, address[] memory _tokenRequestAcceptedDepositTokens) internal returns (TokenRequest) {
 
-        (, TokenManager tokenManager, Vault vault) = _popBaseAppsCache();
+        (, TokenManager tokenManager, Vault vault) = _getBaseApps();
         TokenRequest tokenRequest = TokenRequest(_registerApp(_dao, TOKEN_REQUEST_APP_ID));
         tokenRequest.initialize(tokenManager, vault, _tokenRequestAcceptedDepositTokens);
         return tokenRequest;
@@ -336,7 +339,7 @@ contract DandelionOrg is BaseTemplate {
     /** TOKEN BALANCE ORACLE */
 
     function _installTokenBalanceOracle(Kernel _dao) internal returns (TokenBalanceOracle) {
-        (, TokenManager tokenManager,) = _popBaseAppsCache();
+        (, TokenManager tokenManager,) = _getBaseApps();
         TokenBalanceOracle oracle = TokenBalanceOracle(_registerApp(_dao, TOKEN_BALANCE_ORACLE_APP_ID));
         oracle.initialize(tokenManager.token(), 1 * (10 ** uint256(TOKEN_DECIMALS)));
         return oracle;
@@ -364,7 +367,7 @@ contract DandelionOrg is BaseTemplate {
     )
         internal
     {
-        (Finance finance, TokenManager tokenManager, Vault agentOrVault) = _popBaseAppsCache();
+        (Finance finance, TokenManager tokenManager, Vault agentOrVault) = _getBaseApps();
 
         // Finance permissions
         _createFinancePermissions(_acl, finance, dandelionVoting, dandelionVoting);
@@ -406,81 +409,81 @@ contract DandelionOrg is BaseTemplate {
         _createTimeLockPermissions(_acl, timeLock, dandelionVoting, dandelionVoting, tokenBalanceOracle);
     }
 
-    // CACHE FNS
-    function _cacheToken(MiniMeToken _token) internal {
-        Cache storage c = cache[msg.sender];
+    // SAVE FNS
+    function _saveToken(MiniMeToken _token) internal {
+        DeployedContracts storage senderDeployedContracts = deployedContracts[msg.sender];
 
-        c.token = address(_token);
+        senderDeployedContracts.token = address(_token);
     }
 
-    function _cacheBaseApps(Kernel _dao,  Finance _finance, TokenManager _tokenManager, Vault _vault) internal {
-        Cache storage c = cache[msg.sender];
+    function _saveBaseApps(Kernel _dao,  Finance _finance, TokenManager _tokenManager, Vault _vault) internal {
+        DeployedContracts storage senderDeployedContracts = deployedContracts[msg.sender];
 
-        c.dao = address(_dao);
-        c.finance = address(_finance);
-        c.tokenManager = address(_tokenManager);
-        c.agentOrVault = address(_vault);
+        senderDeployedContracts.dao = address(_dao);
+        senderDeployedContracts.finance = address(_finance);
+        senderDeployedContracts.tokenManager = address(_tokenManager);
+        senderDeployedContracts.agentOrVault = address(_vault);
     }
 
-    function _cacheAgentAsVault(Kernel _dao, bool _agentAsVault) internal {
-        Cache storage c = cache[msg.sender];
+    function _saveAgentAsVault(Kernel _dao, bool _agentAsVault) internal {
+        DeployedContracts storage senderDeployedContracts = deployedContracts[msg.sender];
 
-        c.agentAsVault = _agentAsVault;
+        senderDeployedContracts.agentAsVault = _agentAsVault;
     }
 
-    function _popDaoCache() internal returns (Kernel dao) {
-        Cache storage c = cache[msg.sender];
-        require(c.dao != address(0), ERROR_MISSING_CACHE);
+    function _getDao() internal returns (Kernel dao) {
+        DeployedContracts storage senderDeployedContracts = deployedContracts[msg.sender];
+        require(senderDeployedContracts.dao != address(0), ERROR_MISSING_DAO_CONTRACT);
 
-        dao = Kernel(c.dao);
+        dao = Kernel(senderDeployedContracts.dao);
     }
 
-    function _popTokenCache() internal returns (MiniMeToken) {
-        Cache storage c = cache[msg.sender];
-        require(c.token != address(0), ERROR_MISSING_TOKEN_CACHE);
+    function _getToken() internal returns (MiniMeToken) {
+        DeployedContracts storage senderDeployedContracts = deployedContracts[msg.sender];
+        require(senderDeployedContracts.token != address(0), ERROR_MISSING_TOKEN_CONTRACT);
 
-        MiniMeToken token = MiniMeToken(c.token);
+        MiniMeToken token = MiniMeToken(senderDeployedContracts.token);
         return token;
     }
 
-    function _popBaseAppsCache() internal returns (
+    function _getBaseApps() internal returns (
         Finance finance,
         TokenManager tokenManager,
         Vault vault
     )
     {
-        Cache storage c = cache[msg.sender];
-        require(c.dao != address(0), ERROR_MISSING_CACHE);
+        DeployedContracts storage senderDeployedContracts = deployedContracts[msg.sender];
+        require(senderDeployedContracts.dao != address(0), ERROR_MISSING_DAO_CONTRACT);
 
-        finance = Finance(c.finance);
-        tokenManager = TokenManager(c.tokenManager);
-        vault = Vault(c.agentOrVault);
+        finance = Finance(senderDeployedContracts.finance);
+        tokenManager = TokenManager(senderDeployedContracts.tokenManager);
+        vault = Vault(senderDeployedContracts.agentOrVault);
     }
 
-    function _popAgentAsVaultCache() internal returns (bool agentAsVault) {
-        Cache storage c = cache[msg.sender];
-        require(c.dao != address(0), ERROR_MISSING_CACHE);
+    function _getAgentAsVault() internal returns (bool agentAsVault) {
+        DeployedContracts storage senderDeployedContracts = deployedContracts[msg.sender];
+        require(senderDeployedContracts.dao != address(0), ERROR_MISSING_DAO_CONTRACT);
 
-        agentAsVault = c.agentAsVault;
+        agentAsVault = senderDeployedContracts.agentAsVault;
     }
 
-    function _clearCache() internal {
-        Cache storage c = cache[msg.sender];
-        require(c.dao != address(0), ERROR_MISSING_CACHE);
+    function _clearDeployedContracts() internal {
+        DeployedContracts storage senderDeployedContracts = deployedContracts[msg.sender];
+        require(senderDeployedContracts.dao != address(0), ERROR_MISSING_DAO_CONTRACT);
 
-        delete c.dao;
-        delete c.token;
-        delete c.finance;
-        delete c.tokenManager;
-        delete c.agentOrVault;
-        delete c.agentAsVault;
+        delete senderDeployedContracts.dao;
+        delete senderDeployedContracts.token;
+        delete senderDeployedContracts.finance;
+        delete senderDeployedContracts.tokenManager;
+        delete senderDeployedContracts.agentOrVault;
+        delete senderDeployedContracts.agentAsVault;
     }
 
-    function _ensureBaseAppsCache() internal {
-        Cache storage c = cache[msg.sender];
-        require(c.finance != address(0), ERROR_MISSING_CACHE);
-        require(c.tokenManager != address(0), ERROR_MISSING_CACHE);
-        require(c.agentOrVault != address(0), ERROR_MISSING_CACHE);
+    function _ensureBaseAppsDeployed() internal {
+        DeployedContracts storage senderDeployedContracts = deployedContracts[msg.sender];
+        require(senderDeployedContracts.finance != address(0), ERROR_MISSING_FINANCE_CONTRACT);
+        require(senderDeployedContracts.tokenManager != address(0), ERROR_MISSING_TOKEN_MANAGER_CONTRACT);
+        require(senderDeployedContracts.agentOrVault != address(0), ERROR_MISSING_VAULT_CONTRACT);
     }
 
     function _ensureBaseSettings(address[] memory _holders, uint256[] memory _stakes) private pure {

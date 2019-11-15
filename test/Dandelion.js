@@ -59,7 +59,7 @@ contract('Dandelion', ([_, owner, holder1, holder2, notHolder, someone]) => {
   const VOTE_BUFFER = Math.round(ONE_DAY / BLOCK_TIME)
   const VOTE_DELAY = Math.round(ONE_HOUR / BLOCK_TIME)
 
-  
+
   // Time Lock settings
   const LOCK_AMOUNT = bigExp(10);
   const LOCK_DURATION = 60; // seconds
@@ -70,7 +70,7 @@ contract('Dandelion', ([_, owner, holder1, holder2, notHolder, someone]) => {
   const TIME_LOCK_SETTINGS = [LOCK_DURATION, LOCK_AMOUNT, SPAM_PENALTY_FACTOR]
   const VOTING_SETTINGS = [SUPPORT_REQUIRED, MIN_ACCEPTANCE_QUORUM, VOTE_DURATION, VOTE_BUFFER, VOTE_DELAY]
 
-     
+
 
   before('fetch Dandelion template and ENS', async () => {
     ens = await getENS()
@@ -211,7 +211,7 @@ contract('Dandelion', ([_, owner, holder1, holder2, notHolder, someone]) => {
       assert.deepStrictEqual(await redemptions.getRedeemableTokens(), REDEEMABLE_TOKENS)
       assert.equal(web3.toChecksumAddress(await redemptions.tokenManager()), tokenManager.address, 'token manager not linked to redemptions app')
       assert.equal(web3.toChecksumAddress(await redemptions.vault()), agentOrVault.address, 'vault not linked to redemptions app')
-      
+
       await assertRole(acl, redemptions, dandelionVoting, 'ADD_TOKEN_ROLE')
       await assertRole(acl, redemptions, dandelionVoting, 'REMOVE_TOKEN_ROLE')
       await assertRole(acl, redemptions, dandelionVoting, 'REDEEM_ROLE', { address: ANY_ENTITY }) // TODO: check oracle
@@ -224,7 +224,7 @@ contract('Dandelion', ([_, owner, holder1, holder2, notHolder, someone]) => {
       assert.deepStrictEqual(await tokenRequest.getAcceptedDepositTokens(), ACCEPTED_DEPOSIT_TOKENS)
       assert.equal(web3.toChecksumAddress(await tokenRequest.tokenManager()), tokenManager.address, 'token manager not linked to token request app')
       assert.equal(web3.toChecksumAddress(await tokenRequest.vault()), agentOrVault.address, 'vault not linked to token request app')
-      
+
       await assertRole(acl, tokenRequest, dandelionVoting, 'SET_TOKEN_MANAGER_ROLE')
       await assertRole(acl, tokenRequest, dandelionVoting, 'SET_VAULT_ROLE')
       await assertRole(acl, tokenRequest, dandelionVoting, 'MODIFY_TOKENS_ROLE')
@@ -236,13 +236,13 @@ contract('Dandelion', ([_, owner, holder1, holder2, notHolder, someone]) => {
       assert.equal(await timeLock.lockDuration(), LOCK_DURATION)
       assert.equal((await timeLock.lockAmount()).toString(), bigExp(10, 18)) // TODO: Change to LOCK_AMOUNT once it's fixed in the contract
       assert.equal((await timeLock.spamPenaltyFactor()).toString(), SPAM_PENALTY_FACTOR)
-      
+
       await assertRole(acl, timeLock, dandelionVoting, 'CHANGE_DURATION_ROLE')
       await assertRole(acl, timeLock, dandelionVoting, 'CHANGE_AMOUNT_ROLE')
       await assertRole(acl, timeLock, dandelionVoting, 'CHANGE_SPAM_PENALTY_ROLE')
 
       // TODO: Add checks for permission with params
-      // await assertRole(acl, timeLock, dandelionVoting, 'LOCK_TOKENS_ROLE', { address: ANY_ENTITY }, [new BN(holder1, 16)]) 
+      // await assertRole(acl, timeLock, dandelionVoting, 'LOCK_TOKENS_ROLE', { address: ANY_ENTITY }, [new BN(holder1, 16)])
       // await assertRoleNotGranted(acl, timeLock, dandelionVoting, 'LOCK_TOKENS_ROLE', { address: noHolder })
     })
 
@@ -250,7 +250,7 @@ contract('Dandelion', ([_, owner, holder1, holder2, notHolder, someone]) => {
       assert.isTrue(await tokenBalanceOracle.hasInitialized(), 'token oracle not initialized')
       assert.equal(web3.toChecksumAddress(await tokenBalanceOracle.token()), web3.toChecksumAddress(await tokenManager.token()))
       assert.equal((await tokenBalanceOracle.minBalance()).toString(), bigExp(1, 18))
-      
+
       await assertRole(acl, tokenBalanceOracle, dandelionVoting, 'SET_TOKEN_ROLE')
       await assertRole(acl, tokenBalanceOracle, dandelionVoting, 'SET_MIN_BALANCE_ROLE')
     })
@@ -311,7 +311,7 @@ contract('Dandelion', ([_, owner, holder1, holder2, notHolder, someone]) => {
 
       context('when there was no token created before', () => {
         it('reverts', async () => {
-          await assertRevert(newBaseInstance(randomId(), HOLDERS, STAKES, FINANCE_PERIOD, USE_AGENT_AS_VAULT, { from: owner }), 'DANDELION_MISSING_TOKEN_CACHE')
+          await assertRevert(newBaseInstance(randomId(), HOLDERS, STAKES, FINANCE_PERIOD, USE_AGENT_AS_VAULT, { from: owner }), 'DANDELION_MISSING_TOKEN_CONTRACT')
         })
       })
 
@@ -364,13 +364,13 @@ contract('Dandelion', ([_, owner, holder1, holder2, notHolder, someone]) => {
           tokenReceipt = await template.newToken(TOKEN_NAME, TOKEN_SYMBOL, { from: owner })
           instanceReceipt = await newBaseInstance(daoID, HOLDERS, STAKES, financePeriod, useAgentAsVault, { from: owner })
           dandelionAppsReceipt = await installDandelionApps(
-            daoID, 
-            REDEEMABLE_TOKENS, 
-            ACCEPTED_DEPOSIT_TOKENS, 
-            timeLockToken.address, 
-            TIME_LOCK_SETTINGS, 
-            VOTING_SETTINGS, 
-            { from: owner } 
+            daoID,
+            REDEEMABLE_TOKENS,
+            ACCEPTED_DEPOSIT_TOKENS,
+            timeLockToken.address,
+            TIME_LOCK_SETTINGS,
+            VOTING_SETTINGS,
+            { from: owner }
           )
           await loadDAO(tokenReceipt, instanceReceipt, dandelionAppsReceipt, { vault: !useAgentAsVault, agent: useAgentAsVault })
         })
@@ -446,7 +446,7 @@ contract('Dandelion', ([_, owner, holder1, holder2, notHolder, someone]) => {
       let instanceReceipt, dandelionAppsReceipt, timeLockToken
 
       const itCostsUpTo = (expectedDaoCreationCost, expectedDandelionAppsInstallationCost) => {
-        const expectedTotalCost =  expectedDaoCreationCost + expectedDandelionAppsInstallationCost
+        const expectedTotalCost = expectedDaoCreationCost + expectedDandelionAppsInstallationCost
 
         it(`gas costs must be up to ~${expectedTotalCost} gas`, async () => {
 
@@ -467,13 +467,13 @@ contract('Dandelion', ([_, owner, holder1, holder2, notHolder, someone]) => {
           daoID = randomId()
           instanceReceipt = await newTokenAndBaseInstance(TOKEN_NAME, TOKEN_SYMBOL, daoID, HOLDERS, STAKES, financePeriod, useAgentAsVault, { from: owner })
           dandelionAppsReceipt = await installDandelionApps(
-            daoID, 
-            REDEEMABLE_TOKENS, 
-            ACCEPTED_DEPOSIT_TOKENS, 
-            timeLockToken.address, 
-            TIME_LOCK_SETTINGS, 
-            VOTING_SETTINGS, 
-            { from: owner } 
+            daoID,
+            REDEEMABLE_TOKENS,
+            ACCEPTED_DEPOSIT_TOKENS,
+            timeLockToken.address,
+            TIME_LOCK_SETTINGS,
+            VOTING_SETTINGS,
+            { from: owner }
           )
           await loadDAO(instanceReceipt, instanceReceipt, dandelionAppsReceipt, { vault: !useAgentAsVault, agent: useAgentAsVault })
         })
