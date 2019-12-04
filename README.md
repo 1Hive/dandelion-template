@@ -1,8 +1,14 @@
-# Dandelion Template
+# Dandelion Template <img align="right" src="https://github.com/1Hive/website/blob/master/website/static/img/bee.png" height="80px" />
 
 An organization template intended to enable organizations to form and dissolve quickly.
 
-### Overview
+### 🚨 Security review status: 
+
+Contracts frozen for audit as of commit [003e66d29ed40cceb2632655202f17ea1c0a2bb6](https://github.com/1Hive/dandelion-org/tree/003e66d29ed40cceb2632655202f17ea1c0a2bb6)
+
+The code in this repo has not been audited.
+
+## Overview
 
 1Hive's Dandelion Organization template is intended to help facilitate collaboration by providing an organization structure that makes it easy for contributors easily part ways when disagreements occur. By guaranteeing that participants can exit if they disagree with the decisions other members are making, dandelion organizations are more easily able to attract capital investment.
 
@@ -12,10 +18,6 @@ The dandelion organization template consists of the Agent (optional), Finance, a
 - [Token Request](https://github.com/1Hive/token-request-app): Allows users to propose minting tokens in exchange for a payment to the organization, subject to the approval of existing members.
 - [Time Lock](https://github.com/1Hive/time-lock-app): Allows an organization to require users to lock a configure amount of tokens for a configurable amount of time in order to forward an intent.
 - [Dandelion Voting](https://github.com/1Hive/dandelion-voting-app) An enhanced version of Aragon One's voting app which implements an ACL Oracle which allows an organization to configure permissions that restrict actions based on whether an address has recently voted Yes.
-
-#### 🚨 Security Review Status: Contracts frozen for audit as of commit [003e66d29ed40cceb2632655202f17ea1c0a2bb6](https://github.com/1Hive/dandelion-org/tree/003e66d29ed40cceb2632655202f17ea1c0a2bb6)
-
-The code in this repo has not been audited.
 
 ## Permissions
 
@@ -56,3 +58,11 @@ The code in this repo has not been audited.
 | ----- | ---------- | ---------------- | ---------------- |
 | Agent | RUN_SCRIPT | Dandelion Voting | Dandelion Voting |
 | Agent | EXECUTE    | Dandelion Voting | Dandelion Voting |
+
+## Contributing
+
+We welcome community contributions!
+
+Please check out our [open Issues](https://github.com/1Hive/dandelion-org/issues) to get started.
+
+If you discover something that could potentially impact security, please notify us immediately. The quickest way to reach us is via the #dev channel in our [team Keybase chat](https://1hive.org/contribute/keybase). Just say hi and that you discovered a potential security vulnerability and we'll DM you to discuss details.
