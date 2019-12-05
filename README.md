@@ -26,10 +26,10 @@ The code in this repo has not been audited.
 | EVMScriptRegistry | REGISTRY_MANAGER       | Dandelion Voting        | Dandelion Voting | None             |
 | EVMScriptRegistry | REGISTRY_ADD_EXECUTOR  | Dandelion Voting        | Dandelion Voting | None             |
 | Dandelion Voting  | CREATE_VOTES           | Time Lock               | Dandelion Voting | None             |
-| Dandelion Voting  | MODIFY_QUORUM          | Voting                  | Dandelion Voting | None             |
-| Dandelion Voting  | MODIFY_SUPPORT         | Voting                  | Dandelion Voting | None             |
-| Dandelion Voting  | MODIFY_BUFFER          | Voting                  | Dandelion Voting | None             |
-| Dandelion Voting  | MODIFY_EXECUTION_DELAY | Voting                  | Dandelion Voting | None             |
+| Dandelion Voting  | MODIFY_QUORUM          | Dandelion Voting        | Dandelion Voting | None             |
+| Dandelion Voting  | MODIFY_SUPPORT         | Dandelion Voting        | Dandelion Voting | None             |
+| Dandelion Voting  | MODIFY_BUFFER          | Dandelion Voting        | Dandelion Voting | None             |
+| Dandelion Voting  | MODIFY_EXECUTION_DELAY | Dandelion Voting        | Dandelion Voting | None             |
 | Agent or Vault    | TRANSFER               | Finance and Redemptions | Dandelion Voting | None             |
 | Finance           | CREATE_PAYMENTS        | Dandelion Voting        | Dandelion Voting | None             |
 | Finance           | EXECUTE_PAYMENTS       | Dandelion Voting        | Dandelion Voting | None             |
