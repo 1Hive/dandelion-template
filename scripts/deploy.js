@@ -1,6 +1,6 @@
 const deployTemplate = require("@aragon/templates-shared/scripts/deploy-template");
 
-const TEMPLATE_NAME = "dandelion-org-template.open";
+const TEMPLATE_NAME = "dandelion-org-template";
 const CONTRACT_NAME = "DandelionOrg";
 
 module.exports = async callback => {
