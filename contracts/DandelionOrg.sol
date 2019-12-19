@@ -5,7 +5,8 @@ import "@aragon/templates-shared/contracts/BaseTemplate.sol";
 import "@1hive/apps-redemptions/contracts/Redemptions.sol";
 import "@1hive/apps-time-lock/contracts/TimeLock.sol";
 import "@1hive/apps-token-request/contracts/TokenRequest.sol";
-import "@1hive/apps-dandelion-voting/contracts/DandelionVoting.sol";
+//import "@1hive/apps-dandelion-voting/contracts/DandelionVoting.sol";
+import "./DandelionVoting.sol";
 import "@1hive/oracle-token-balance/contracts/TokenBalanceOracle.sol";
 
 import "openzeppelin-solidity/contracts/token/ERC20/ERC20Detailed.sol";
@@ -130,7 +131,7 @@ contract DandelionOrg is BaseTemplate {
     * @param _name String with the name for the token used by share holders in the organization
     * @param _symbol String with the symbol for the token used by share holders in the organization
     */
-    function newToken(string memory _name, string memory _symbol) public returns (MiniMeToken) {
+    function newToken(string memory _name, string memory _symbol) internal returns (MiniMeToken) {
         MiniMeToken token = _createToken(_name, _symbol, TOKEN_DECIMALS);
         _saveToken(token);
         return token;
@@ -150,7 +151,7 @@ contract DandelionOrg is BaseTemplate {
         uint64 _financePeriod,
         bool _useAgentAsVault
     )
-        public
+        internal
     {
         _validateId(_id);
         _ensureBaseSettings(_holders, _stakes);
