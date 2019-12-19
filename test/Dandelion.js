@@ -294,22 +294,32 @@ contract('Dandelion', ([_, owner, holder1, holder2, notHolder, someone]) => {
   }
 
   // newToken and newBaseInstance in one transaction
-  context('creating instances with one transaction', () => {
+  context('creating instances with two transactions', () => {
     context('when the creation fails', () => {
       const FINANCE_PERIOD = 0
       const USE_AGENT_AS_VAULT = true
 
       it('reverts when no holders were given', async () => {
-        await assertRevert(newTokenAndBaseInstance(TOKEN_NAME, TOKEN_SYMBOL, randomId(), [], [], FINANCE_PERIOD, USE_AGENT_AS_VAULT), 'DANDELION_EMPTY_HOLDERS')
+        await assertRevert(newTokenAndBaseInstance(TOKEN_NAME, TOKEN_SYMBOL, [], [], FINANCE_PERIOD, USE_AGENT_AS_VAULT), 'DANDELION_EMPTY_HOLDERS')
       })
 
       it('reverts when holders and stakes length do not match', async () => {
-        await assertRevert(newTokenAndBaseInstance(TOKEN_NAME, TOKEN_SYMBOL, randomId(), [holder1], STAKES, FINANCE_PERIOD, USE_AGENT_AS_VAULT), 'DANDELION_BAD_HOLDERS_STAKES_LEN')
-        await assertRevert(newTokenAndBaseInstance(TOKEN_NAME, TOKEN_SYMBOL, randomId(), HOLDERS, [1e18], FINANCE_PERIOD, USE_AGENT_AS_VAULT), 'DANDELION_BAD_HOLDERS_STAKES_LEN')
+        await assertRevert(newTokenAndBaseInstance(TOKEN_NAME, TOKEN_SYMBOL, [holder1], STAKES, FINANCE_PERIOD, USE_AGENT_AS_VAULT), 'DANDELION_BAD_HOLDERS_STAKES_LEN')
+        await assertRevert(newTokenAndBaseInstance(TOKEN_NAME, TOKEN_SYMBOL, HOLDERS, [1e18], FINANCE_PERIOD, USE_AGENT_AS_VAULT), 'DANDELION_BAD_HOLDERS_STAKES_LEN')
       })
 
       it('reverts when an empty id is provided', async () => {
-        await assertRevert(newTokenAndBaseInstance(TOKEN_NAME, TOKEN_SYMBOL, '', HOLDERS, STAKES, FINANCE_PERIOD, USE_AGENT_AS_VAULT), 'TEMPLATE_INVALID_ID')
+        const timeLockToken = await ERC20.new(owner, "Lock Token", "LKT");
+        newTokenAndBaseInstance(TOKEN_NAME, TOKEN_SYMBOL, HOLDERS, STAKES, FINANCE_PERIOD, USE_AGENT_AS_VAULT)
+        await assertRevert(installDandelionApps(
+          '',
+          REDEEMABLE_TOKENS,
+          ACCEPTED_DEPOSIT_TOKENS,
+          timeLockToken.address,
+          TIME_LOCK_SETTINGS,
+          VOTING_SETTINGS,
+          { from: owner }
+        ), 'TEMPLATE_INVALID_ID')
       })
     })
 
@@ -336,7 +346,7 @@ contract('Dandelion', ([_, owner, holder1, holder2, notHolder, someone]) => {
         before('create Dandelion', async () => {
           timeLockToken = await ERC20.new(owner, "Lock Token", "LKT");
           daoID = randomId()
-          instanceReceipt = await newTokenAndBaseInstance(TOKEN_NAME, TOKEN_SYMBOL, daoID, HOLDERS, STAKES, financePeriod, useAgentAsVault, { from: owner })
+          instanceReceipt = await newTokenAndBaseInstance(TOKEN_NAME, TOKEN_SYMBOL, HOLDERS, STAKES, financePeriod, useAgentAsVault, { from: owner })
           dandelionAppsReceipt = await installDandelionApps(
             daoID,
             REDEEMABLE_TOKENS,
