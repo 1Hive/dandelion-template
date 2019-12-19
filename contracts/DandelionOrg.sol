@@ -5,8 +5,7 @@ import "@aragon/templates-shared/contracts/BaseTemplate.sol";
 import "@1hive/apps-redemptions/contracts/Redemptions.sol";
 import "@1hive/apps-time-lock/contracts/TimeLock.sol";
 import "@1hive/apps-token-request/contracts/TokenRequest.sol";
-//import "@1hive/apps-dandelion-voting/contracts/DandelionVoting.sol";
-import "./DandelionVoting.sol";
+import "@1hive/apps-dandelion-voting/contracts/DandelionVoting.sol";
 import "@1hive/oracle-token-balance/contracts/TokenBalanceOracle.sol";
 
 import "openzeppelin-solidity/contracts/token/ERC20/ERC20Detailed.sol";
