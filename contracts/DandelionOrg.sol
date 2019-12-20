@@ -61,7 +61,6 @@ contract DandelionOrg is BaseTemplate {
     *      to be setup due to gas limits.
     * @param _tokenName String with the name for the token used by share holders in the organization
     * @param _tokenSymbol String with the symbol for the token used by share holders in the organization
-    * @param _id String with the name for org, will assign `[id].aragonid.eth`
     * @param _holders Array of token holder addresses
     * @param _stakes Array of token stakes for holders (token has 18 decimals, multiply token amount `* 10^18`)
     * @param _useAgentAsVault Boolean to tell whether to use an Agent app as a more advanced form of Vault app
@@ -69,7 +68,6 @@ contract DandelionOrg is BaseTemplate {
     function newTokenAndBaseInstance(
         string _tokenName,
         string _tokenSymbol,
-        string _id,
         address[] _holders,
         uint256[] _stakes,
         uint64 _financePeriod,
@@ -78,7 +76,7 @@ contract DandelionOrg is BaseTemplate {
         external
     {
         newToken(_tokenName, _tokenSymbol);
-        newBaseInstance(_id, _holders, _stakes, _financePeriod, _useAgentAsVault);
+        newBaseInstance(_holders, _stakes, _financePeriod, _useAgentAsVault);
     }
 
     /**
@@ -100,6 +98,7 @@ contract DandelionOrg is BaseTemplate {
     )
         external
     {
+        _validateId(_id);
         _ensureDandelionSettings(_tokenRequestAcceptedDepositTokens, _timeLockToken);
         _ensureBaseAppsDeployed();
 
@@ -130,7 +129,7 @@ contract DandelionOrg is BaseTemplate {
     * @param _name String with the name for the token used by share holders in the organization
     * @param _symbol String with the symbol for the token used by share holders in the organization
     */
-    function newToken(string memory _name, string memory _symbol) public returns (MiniMeToken) {
+    function newToken(string memory _name, string memory _symbol) internal returns (MiniMeToken) {
         MiniMeToken token = _createToken(_name, _symbol, TOKEN_DECIMALS);
         _saveToken(token);
         return token;
@@ -138,21 +137,18 @@ contract DandelionOrg is BaseTemplate {
 
     /**
     * @dev Deploy a Dandelion Org DAO using a previously saved MiniMe token
-    * @param _id String with the name for org, will assign `[id].aragonid.eth`
     * @param _holders Array of token holder addresses
     * @param _stakes Array of token stakes for holders (token has 18 decimals, multiply token amount `* 10^18`)
     * @param _useAgentAsVault Boolean to tell whether to use an Agent app as a more advanced form of Vault app
     */
     function newBaseInstance(
-        string memory _id,
         address[] memory _holders,
         uint256[] memory _stakes,
         uint64 _financePeriod,
         bool _useAgentAsVault
     )
-        public
+        internal
     {
-        _validateId(_id);
         _ensureBaseSettings(_holders, _stakes);
 
         (Kernel dao, ACL acl) = _createDAO();

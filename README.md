@@ -4,7 +4,7 @@ An organization template intended to enable organizations to form and dissolve q
 
 ### 🚨 Security review status: 
 
-Contracts frozen for audit as of commit [003e66d29ed40cceb2632655202f17ea1c0a2bb6](https://github.com/1Hive/dandelion-org/tree/003e66d29ed40cceb2632655202f17ea1c0a2bb6)
+Contracts updated for audit as of commit [2140984696ca4e48e2e5e48dc84f96e0c07d3ba8](https://github.com/1Hive/dandelion-org/tree/2140984696ca4e48e2e5e48dc84f96e0c07d3ba8)
 
 The code in this repo has not been audited.
 

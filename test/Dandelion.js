@@ -70,19 +70,10 @@ contract('Dandelion', ([_, owner, holder1, holder2, notHolder, someone]) => {
   const TIME_LOCK_SETTINGS = [LOCK_DURATION, LOCK_AMOUNT, SPAM_PENALTY_FACTOR]
   const VOTING_SETTINGS = [SUPPORT_REQUIRED, MIN_ACCEPTANCE_QUORUM, VOTE_DURATION, VOTE_BUFFER, VOTE_DELAY]
 
-
-
   before('fetch Dandelion template and ENS', async () => {
     ens = await getENS()
     template = DandelionTemplate.at(await getTemplateAddress())
   })
-
-  const newBaseInstance = (...params) => {
-    const lastParam = params[params.length - 1]
-    const txParams = (!Array.isArray(lastParam) && typeof lastParam === 'object') ? params.pop() : {}
-    const newInstanceFn = DandelionTemplate.abi.find(({ name, inputs }) => name === 'newBaseInstance' && inputs.length === params.length)
-    return template.sendTransaction(encodeCall(newInstanceFn, params, txParams))
-  }
 
   const newTokenAndBaseInstance = (...params) => {
     const lastParam = params[params.length - 1]
@@ -96,7 +87,6 @@ contract('Dandelion', ([_, owner, holder1, holder2, notHolder, someone]) => {
     const txParams = (!Array.isArray(lastParam) && typeof lastParam === 'object') ? params.pop() : {}
     const newInstanceFn = DandelionTemplate.abi.find(({ name, inputs }) => name === 'installDandelionApps' && inputs.length === params.length)
     return template.sendTransaction(encodeCall(newInstanceFn, params, txParams))
-
   }
 
   const loadDAO = async (tokenReceipt, instanceReceipt, dandelionAppsReceipt, apps = { vault: false, agent: false }) => {
@@ -195,8 +185,8 @@ contract('Dandelion', ([_, owner, holder1, holder2, notHolder, someone]) => {
       assert.isTrue(await dandelionVoting.hasInitialized(), 'voting not initialized')
       assert.equal((await dandelionVoting.supportRequiredPct()).toString(), SUPPORT_REQUIRED)
       assert.equal((await dandelionVoting.minAcceptQuorumPct()).toString(), MIN_ACCEPTANCE_QUORUM)
-      assert.equal((await dandelionVoting.voteDurationBlocks()).toString(), VOTE_DURATION)
-      assert.equal((await dandelionVoting.voteBufferBlocks()).toString(), VOTE_BUFFER)
+      assert.equal((await dandelionVoting.durationBlocks()).toString(), VOTE_DURATION)
+      assert.equal((await dandelionVoting.bufferBlocks()).toString(), VOTE_BUFFER)
       assert.equal((await dandelionVoting.executionDelayBlocks()).toString(), VOTE_DELAY)
 
       await assertRole(acl, dandelionVoting, dandelionVoting, 'CREATE_VOTES_ROLE', timeLock)
@@ -303,142 +293,33 @@ contract('Dandelion', ([_, owner, holder1, holder2, notHolder, someone]) => {
     })
   }
 
-  // newToken and newBaseInstance separated
-  context('creating instances with separated transactions', () => {
-    context('when the creation fails', () => {
-      const FINANCE_PERIOD = 0
-      const USE_AGENT_AS_VAULT = true
-
-      context('when there was no token created before', () => {
-        it('reverts', async () => {
-          await assertRevert(newBaseInstance(randomId(), HOLDERS, STAKES, FINANCE_PERIOD, USE_AGENT_AS_VAULT, { from: owner }), 'DANDELION_MISSING_TOKEN_CONTRACT')
-        })
-      })
-
-      context('when there was a token created', () => {
-        before('create token', async () => {
-          await template.newToken(TOKEN_NAME, TOKEN_SYMBOL)
-        })
-
-        it('reverts when no holders were given', async () => {
-          await assertRevert(newBaseInstance(randomId(), [], [], FINANCE_PERIOD, USE_AGENT_AS_VAULT), 'DANDELION_EMPTY_HOLDERS')
-        })
-
-        it('reverts when holders and stakes length do not match', async () => {
-          await assertRevert(newBaseInstance(randomId(), [holder1], STAKES, FINANCE_PERIOD, USE_AGENT_AS_VAULT), 'DANDELION_BAD_HOLDERS_STAKES_LEN')
-          await assertRevert(newBaseInstance(randomId(), HOLDERS, [1e18], FINANCE_PERIOD, USE_AGENT_AS_VAULT), 'DANDELION_BAD_HOLDERS_STAKES_LEN')
-        })
-
-        it('reverts when an empty id is provided', async () => {
-          await assertRevert(newBaseInstance('', HOLDERS, STAKES, FINANCE_PERIOD, USE_AGENT_AS_VAULT), 'TEMPLATE_INVALID_ID')
-        })
-      })
-    })
-
-    context('when the creation succeeds', () => {
-      let instanceReceipt, tokenReceipt, dandelionAppsReceipt, timeLockToken
-
-      const itCostsUpTo = (expectedDaoCreationCost, expectedDandelionAppsInstallationCost) => {
-        const expectedTokenCreationCost = 1.8e6
-        const expectedTotalCost = expectedTokenCreationCost + expectedDaoCreationCost + expectedDandelionAppsInstallationCost
-
-        it(`gas costs must be up to ~${expectedTotalCost} gas`, async () => {
-          const tokenCreationCost = tokenReceipt.receipt.gasUsed
-          assert.isAtMost(tokenCreationCost, expectedTokenCreationCost, `token creation call should cost up to ${tokenCreationCost} gas`)
-
-          const daoCreationCost = instanceReceipt.receipt.gasUsed
-          assert.isAtMost(daoCreationCost, expectedDaoCreationCost, `dao creation call should cost up to ${expectedDaoCreationCost} gas`)
-
-          const dandelionAppsInstallationCost = dandelionAppsReceipt.receipt.gasUsed
-          assert.isAtMost(dandelionAppsInstallationCost, expectedDandelionAppsInstallationCost, `install dandelion apps call should cost up to ${expectedDandelionAppsInstallationCost} gas`)
-
-          const totalCost = tokenCreationCost + daoCreationCost + dandelionAppsInstallationCost
-          assert.isAtMost(totalCost, expectedTotalCost, `total costs should be up to ${expectedTotalCost} gas`)
-        })
-      }
-
-      const createDAO = (useAgentAsVault = false, financePeriod = 0) => {
-        before('create Dandelion', async () => {
-          timeLockToken = await ERC20.new(owner, "Lock Token", "LKT");
-          daoID = randomId()
-          tokenReceipt = await template.newToken(TOKEN_NAME, TOKEN_SYMBOL, { from: owner })
-          instanceReceipt = await newBaseInstance(daoID, HOLDERS, STAKES, financePeriod, useAgentAsVault, { from: owner })
-          dandelionAppsReceipt = await installDandelionApps(
-            daoID,
-            REDEEMABLE_TOKENS,
-            ACCEPTED_DEPOSIT_TOKENS,
-            timeLockToken.address,
-            TIME_LOCK_SETTINGS,
-            VOTING_SETTINGS,
-            { from: owner }
-          )
-          await loadDAO(tokenReceipt, instanceReceipt, dandelionAppsReceipt, { vault: !useAgentAsVault, agent: useAgentAsVault })
-        })
-      }
-
-      context('when requesting a custom finance period', () => {
-        const FINANCE_PERIOD = 60 * 60 * 24 * 15 // 15 days
-
-        context('when requesting an agent app', () => {
-          const USE_AGENT_AS_VAULT = true
-
-          createDAO(USE_AGENT_AS_VAULT, FINANCE_PERIOD)
-          itCostsUpTo(5.05e6, 5.2e6)
-          itSetupsDAOCorrectly(USE_AGENT_AS_VAULT, FINANCE_PERIOD)
-          itSetupsAgentAppCorrectly()
-        })
-
-        context('when requesting a vault app', () => {
-          const USE_AGENT_AS_VAULT = false
-
-          createDAO(USE_AGENT_AS_VAULT, FINANCE_PERIOD)
-          itCostsUpTo(5e6, 5.2e6)
-          itSetupsDAOCorrectly(USE_AGENT_AS_VAULT, FINANCE_PERIOD)
-          itSetupsVaultAppCorrectly()
-        })
-      })
-
-      context('when requesting a default finance period', () => {
-        const FINANCE_PERIOD = 0 // use default
-
-        context('when requesting an agent app', () => {
-          const USE_AGENT_AS_VAULT = true
-
-          createDAO(USE_AGENT_AS_VAULT, FINANCE_PERIOD)
-          itCostsUpTo(5.05e6, 5.2e6)
-          itSetupsDAOCorrectly(USE_AGENT_AS_VAULT, FINANCE_PERIOD)
-          itSetupsAgentAppCorrectly()
-        })
-
-        context('when requesting a vault app', () => {
-          const USE_AGENT_AS_VAULT = false
-
-          createDAO(USE_AGENT_AS_VAULT, FINANCE_PERIOD)
-          itCostsUpTo(5e6, 5.2e6)
-          itSetupsDAOCorrectly(USE_AGENT_AS_VAULT, FINANCE_PERIOD)
-          itSetupsVaultAppCorrectly()
-        })
-      })
-    })
-  })
-
   // newToken and newBaseInstance in one transaction
-  context('creating instances with one transaction', () => {
+  context('creating instances with two transactions', () => {
     context('when the creation fails', () => {
       const FINANCE_PERIOD = 0
       const USE_AGENT_AS_VAULT = true
 
       it('reverts when no holders were given', async () => {
-        await assertRevert(newTokenAndBaseInstance(TOKEN_NAME, TOKEN_SYMBOL, randomId(), [], [], FINANCE_PERIOD, USE_AGENT_AS_VAULT), 'DANDELION_EMPTY_HOLDERS')
+        await assertRevert(newTokenAndBaseInstance(TOKEN_NAME, TOKEN_SYMBOL, [], [], FINANCE_PERIOD, USE_AGENT_AS_VAULT), 'DANDELION_EMPTY_HOLDERS')
       })
 
       it('reverts when holders and stakes length do not match', async () => {
-        await assertRevert(newTokenAndBaseInstance(TOKEN_NAME, TOKEN_SYMBOL, randomId(), [holder1], STAKES, FINANCE_PERIOD, USE_AGENT_AS_VAULT), 'DANDELION_BAD_HOLDERS_STAKES_LEN')
-        await assertRevert(newTokenAndBaseInstance(TOKEN_NAME, TOKEN_SYMBOL, randomId(), HOLDERS, [1e18], FINANCE_PERIOD, USE_AGENT_AS_VAULT), 'DANDELION_BAD_HOLDERS_STAKES_LEN')
+        await assertRevert(newTokenAndBaseInstance(TOKEN_NAME, TOKEN_SYMBOL, [holder1], STAKES, FINANCE_PERIOD, USE_AGENT_AS_VAULT), 'DANDELION_BAD_HOLDERS_STAKES_LEN')
+        await assertRevert(newTokenAndBaseInstance(TOKEN_NAME, TOKEN_SYMBOL, HOLDERS, [1e18], FINANCE_PERIOD, USE_AGENT_AS_VAULT), 'DANDELION_BAD_HOLDERS_STAKES_LEN')
       })
 
       it('reverts when an empty id is provided', async () => {
-        await assertRevert(newTokenAndBaseInstance(TOKEN_NAME, TOKEN_SYMBOL, '', HOLDERS, STAKES, FINANCE_PERIOD, USE_AGENT_AS_VAULT), 'TEMPLATE_INVALID_ID')
+        const timeLockToken = await ERC20.new(owner, "Lock Token", "LKT");
+        newTokenAndBaseInstance(TOKEN_NAME, TOKEN_SYMBOL, HOLDERS, STAKES, FINANCE_PERIOD, USE_AGENT_AS_VAULT)
+        await assertRevert(installDandelionApps(
+          '',
+          REDEEMABLE_TOKENS,
+          ACCEPTED_DEPOSIT_TOKENS,
+          timeLockToken.address,
+          TIME_LOCK_SETTINGS,
+          VOTING_SETTINGS,
+          { from: owner }
+        ), 'TEMPLATE_INVALID_ID')
       })
     })
 
@@ -465,7 +346,7 @@ contract('Dandelion', ([_, owner, holder1, holder2, notHolder, someone]) => {
         before('create Dandelion', async () => {
           timeLockToken = await ERC20.new(owner, "Lock Token", "LKT");
           daoID = randomId()
-          instanceReceipt = await newTokenAndBaseInstance(TOKEN_NAME, TOKEN_SYMBOL, daoID, HOLDERS, STAKES, financePeriod, useAgentAsVault, { from: owner })
+          instanceReceipt = await newTokenAndBaseInstance(TOKEN_NAME, TOKEN_SYMBOL, HOLDERS, STAKES, financePeriod, useAgentAsVault, { from: owner })
           dandelionAppsReceipt = await installDandelionApps(
             daoID,
             REDEEMABLE_TOKENS,
@@ -486,7 +367,7 @@ contract('Dandelion', ([_, owner, holder1, holder2, notHolder, someone]) => {
           const USE_AGENT_AS_VAULT = true
 
           createDAO(USE_AGENT_AS_VAULT, FINANCE_PERIOD)
-          itCostsUpTo(5.08e6, 5.2e6)
+          itCostsUpTo(5.08e6, 5.3e6)
           itSetupsDAOCorrectly(USE_AGENT_AS_VAULT, FINANCE_PERIOD)
           itSetupsAgentAppCorrectly()
         })
@@ -495,7 +376,7 @@ contract('Dandelion', ([_, owner, holder1, holder2, notHolder, someone]) => {
           const USE_AGENT_AS_VAULT = false
 
           createDAO(USE_AGENT_AS_VAULT, FINANCE_PERIOD)
-          itCostsUpTo(5.06e6, 5.2e6)
+          itCostsUpTo(5.06e6, 5.3e6)
           itSetupsDAOCorrectly(USE_AGENT_AS_VAULT, FINANCE_PERIOD)
           itSetupsVaultAppCorrectly()
         })
@@ -508,7 +389,7 @@ contract('Dandelion', ([_, owner, holder1, holder2, notHolder, someone]) => {
           const USE_AGENT_AS_VAULT = true
 
           createDAO(USE_AGENT_AS_VAULT, FINANCE_PERIOD)
-          itCostsUpTo(5.08e6, 5.2e6)
+          itCostsUpTo(5.08e6, 5.3e6)
           itSetupsDAOCorrectly(USE_AGENT_AS_VAULT, FINANCE_PERIOD)
           itSetupsAgentAppCorrectly()
         })
@@ -517,7 +398,7 @@ contract('Dandelion', ([_, owner, holder1, holder2, notHolder, someone]) => {
           const USE_AGENT_AS_VAULT = false
 
           createDAO(USE_AGENT_AS_VAULT, FINANCE_PERIOD)
-          itCostsUpTo(5.06e6, 5.2e6)
+          itCostsUpTo(5.06e6, 5.3e6)
           itSetupsDAOCorrectly(USE_AGENT_AS_VAULT, FINANCE_PERIOD)
           itSetupsVaultAppCorrectly()
         })
