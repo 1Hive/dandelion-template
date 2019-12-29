@@ -17,7 +17,6 @@ module.exports = (web3, artifacts) => {
   const getTemplateAddress = async () => {
     const apm = await getAPM()
     const { appName } = await getDeployedData()
-
     const repoAddress = await apm.addr(namehash(appName))
     const repo = artifacts.require('Repo').at(repoAddress)
     return (await repo.getLatest())[1]
