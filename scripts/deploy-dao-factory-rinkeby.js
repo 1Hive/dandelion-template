@@ -3,9 +3,7 @@ const DAOFactory = artifacts.require("DAOFactory")
 const EVMScriptRegistryFactory = artifacts.require("EVMScriptRegistryFactory")
 
 module.exports = async callback => {
-
   try {
-
     console.log(`Creating ACL...`)
     const acl = await ACL.new()
     console.log(`Deployed acl: ${acl.address}`)
