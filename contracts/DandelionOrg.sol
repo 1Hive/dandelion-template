@@ -31,7 +31,7 @@ contract DandelionOrg is BaseTemplate {
     bytes32 constant private REDEMPTIONS_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("redemptions")));
     bytes32 constant private TIME_LOCK_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("time-lock")));
     bytes32 constant private TOKEN_REQUEST_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("token-request")));
-    bytes32 constant private TOKEN_BALANCE_ORACLE_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("token-balance-oracle-test")));
+    bytes32 constant private TOKEN_BALANCE_ORACLE_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("token-balance-oracle")));
 
     address constant ANY_ENTITY = address(-1);
     uint8 constant ORACLE_PARAM_ID = 203;
@@ -152,7 +152,6 @@ contract DandelionOrg is BaseTemplate {
         _ensureBaseSettings(_holders, _stakes);
 
         (Kernel dao, ACL acl) = _createDAO();
-        acl.grantPermission(ANY_ENTITY, dao, dao.APP_MANAGER_ROLE());
         _setupBaseApps(dao, acl, _holders, _stakes, _financePeriod, _useAgentAsVault);
     }
 

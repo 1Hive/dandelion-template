@@ -13,7 +13,7 @@
     },
     "rinkeby": {
       "appName": "dandelion-org-template.aragonpm.eth",
-      "address": "0x01d2f3b4b42c5b73effe65a1c4434d2da3df936d",
+      "address": "0x14d21d5eb50d762766c6e0384fa5ab8fbe0fe421",
       "network": "rinkeby",
       "registry": "0x98Df287B6C145399Aaa709692c8D308357bC085D"
     },
