@@ -2,6 +2,8 @@ const ACL = artifacts.require("ACL")
 const DAOFactory = artifacts.require("DAOFactory")
 const EVMScriptRegistryFactory = artifacts.require("EVMScriptRegistryFactory")
 
+const BASE_KERNEL_RINKEBY_ADDRESS = "0xaa1A0367C7588937cbF542EF79cbfE83D317DA88"
+
 module.exports = async callback => {
   try {
     console.log(`Creating ACL...`)
@@ -13,7 +15,7 @@ module.exports = async callback => {
     console.log(`Deployed evmScriptRegistryFactory: ${evmScriptRegistryFactory.address}`)
 
     console.log(`\nCreating DAOFactory...`)
-    const daoFactory = await DAOFactory.new("0xaa1A0367C7588937cbF542EF79cbfE83D317DA88", acl.address, evmScriptRegistryFactory.address)
+    const daoFactory = await DAOFactory.new(BASE_KERNEL_RINKEBY_ADDRESS, acl.address, evmScriptRegistryFactory.address)
     console.log(`Deployed daoFactory: ${daoFactory.address}`)
 
   } catch (error) {
