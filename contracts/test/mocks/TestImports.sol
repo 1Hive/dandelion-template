@@ -5,7 +5,8 @@ import "@aragon/os/contracts/factory/APMRegistryFactory.sol";
 import "@aragon/os/contracts/factory/EVMScriptRegistryFactory.sol";
 import "@aragon/id/contracts/FIFSResolvingRegistrar.sol";
 import "@aragon/templates-shared/contracts/Migrations.sol";
-
+import "@aragon/os/contracts/factory/DAOFactory.sol";
+import "@aragon/os/contracts/acl/ACL.sol";
 
 // HACK to workaround truffle artifact loading on dependencies
 contract TestImports {

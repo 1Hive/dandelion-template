@@ -52,8 +52,8 @@ module.exports = async (
     const ONE_WEEK_BLOCKS = Math.round(ONE_WEEK / 15)
 
     // Voting settings
-    const SUPPORT_REQUIRED = 50e16;
-    const MIN_ACCEPTANCE_QUORUM = 5e16;
+    const SUPPORT_REQUIRED = new BN("50000000000000000");
+    const MIN_ACCEPTANCE_QUORUM = new BN("50000000000000000");
     const VOTE_DURATION = ONE_WEEK_BLOCKS;
     const VOTE_BUFFER = ONE_HOUR_BLOCKS
     const VOTE_EXECUTION_DELAY = ONE_HOUR_BLOCKS
@@ -80,19 +80,30 @@ module.exports = async (
     const acceptedDepositToken = [ETHER_FAKE_ADDRESS];
     const redeemableTokens = [ETHER_FAKE_ADDRESS];
 
+    console.log("Creating time lock token...")
     const timeLockToken = await ERC20.new(owner, "Lock Token", "LKT", {
       from: owner
     });
 
-    const receipt = await dandelionOrg.installDandelionApps(
+    console.log("Creating base apps...")
+    const baseAppsReceipt = await dandelionOrg.newTokenAndBaseInstance("TEST", "TST", [owner], [new BN('1000000000000000000')], new BN("50000000000000000"), true)
+
+    const tokenAddress = baseAppsReceipt.logs.find(x => x.event === "DeployToken").args.token
+    console.log(`Token address: ${tokenAddress}`)
+    // console.log()
+
+    console.log("Creating DAO...")
+    const newDaoReceipt = await dandelionOrg.installDandelionApps(
       daoID,
-      acceptedDepositToken,
       redeemableTokens,
+      acceptedDepositToken,
       timeLockToken.address,
       TIME_LOCK_SETTINGS,
       VOTING_SETTINGS,
       { from: owner, gas: 10000000 }
     );
+
+    console.log(`DAO address: ${newDaoReceipt.logs.find(x => x.event === "SetupDao").args.dao} Gas used: ${newDaoReceipt.receipt.gasUsed}`)
 
     if (typeof truffleExecCallback === "function") {
       // Called directly via `truffle exec`
