@@ -27,11 +27,11 @@ contract DandelionOrg is BaseTemplate {
     uint256 constant private TOKEN_MAX_PER_ACCOUNT = uint256(0);
     uint64 constant private DEFAULT_FINANCE_PERIOD = uint64(30 days);
 
-    bytes32 constant private DANDELION_VOTING_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("dandelion-voting")));
-    bytes32 constant private REDEMPTIONS_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("redemptions")));
-    bytes32 constant private TIME_LOCK_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("time-lock")));
-    bytes32 constant private TOKEN_REQUEST_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("token-request")));
-    bytes32 constant private TOKEN_BALANCE_ORACLE_APP_ID = keccak256(abi.encodePacked(apmNamehash("open"), keccak256("token-balance-oracle")));
+    bytes32 constant private DANDELION_VOTING_APP_ID = apmNamehash("dandelion-voting");
+    bytes32 constant private REDEMPTIONS_APP_ID = apmNamehash("redemptions");
+    bytes32 constant private TIME_LOCK_APP_ID = apmNamehash("time-lock");
+    bytes32 constant private TOKEN_REQUEST_APP_ID = apmNamehash("token-request");
+    bytes32 constant private TOKEN_BALANCE_ORACLE_APP_ID = apmNamehash("token-balance-oracle");
 
     address constant ANY_ENTITY = address(-1);
     uint8 constant ORACLE_PARAM_ID = 203;

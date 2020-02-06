@@ -31,7 +31,7 @@ module.exports = async (
     const DandelionOrg = this.artifacts.require("DandelionOrg");
     const ERC20 = artifacts.require("ERC20Sample");
 
-    log("New Instane...");
+    log("New Instance...");
 
     const accounts = await getAccounts(web3);
     if (!owner) {
@@ -84,13 +84,13 @@ module.exports = async (
     const timeLockToken = await ERC20.new(owner, "Lock Token", "LKT", {
       from: owner
     });
+    console.log(`Lock Token address: ${timeLockToken.address}`)
 
     console.log("Creating base apps...")
     const baseAppsReceipt = await dandelionOrg.newTokenAndBaseInstance("TEST", "TST", [owner], [new BN('1000000000000000000')], new BN("50000000000000000"), true)
 
     const tokenAddress = baseAppsReceipt.logs.find(x => x.event === "DeployToken").args.token
-    console.log(`Token address: ${tokenAddress}`)
-    // console.log()
+    console.log(`Membership Token address: ${tokenAddress}`)
 
     console.log("Creating DAO...")
     const newDaoReceipt = await dandelionOrg.installDandelionApps(
