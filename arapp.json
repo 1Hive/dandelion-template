@@ -15,7 +15,8 @@
       "appName": "dandelion-org-template.aragonpm.eth",
       "address": "0xeca90eb301bbe5e6a6e3b2ea8c929c340e82bde8",
       "network": "rinkeby",
-      "registry": "0x98Df287B6C145399Aaa709692c8D308357bC085D"
+      "registry": "0x98Df287B6C145399Aaa709692c8D308357bC085D",
+      "wsRPC": "wss://rinkeby.eth.aragon.network/ws"
     },
     "ropsten": {
       "appName": "dandelion-org-template.open.aragonpm.eth",
