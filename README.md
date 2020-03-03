@@ -2,11 +2,7 @@
 
 An organization template intended to enable organizations to form and dissolve quickly.
 
-### 🚨 Security review status: 
-
-Contracts updated for audit as of commit [2140984696ca4e48e2e5e48dc84f96e0c07d3ba8](https://github.com/1Hive/dandelion-org/tree/2140984696ca4e48e2e5e48dc84f96e0c07d3ba8)
-
-The code in this repo has not been audited.
+### 🚨 Security review status: [Contracts audited](https://diligence.consensys.net/audits/2019/12/dandelion-organizations/)
 
 ## Overview
 
