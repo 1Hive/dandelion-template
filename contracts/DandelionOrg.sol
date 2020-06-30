@@ -27,17 +27,11 @@ contract DandelionOrg is BaseTemplate {
     uint256 constant private TOKEN_MAX_PER_ACCOUNT = uint256(0);
     uint64 constant private DEFAULT_FINANCE_PERIOD = uint64(30 days);
 
-//    bytes32 constant private DANDELION_VOTING_APP_ID = apmNamehash("dandelion-voting");
-//    bytes32 constant private REDEMPTIONS_APP_ID = apmNamehash("redemptions");
-//    bytes32 constant private TIME_LOCK_APP_ID = apmNamehash("time-lock");
-//    bytes32 constant private TOKEN`_REQUEST_APP_ID = apmNamehash("token-request");
-//    bytes32 constant private TOKEN_BALANCE_ORACLE_APP_ID = apmNamehash("token-balance-oracle");
-
-    bytes32 constant private DANDELION_VOTING_APP_ID = keccak256(abi.encodePacked(apmNamehash("1hive"), keccak256("dandelion-voting")));
-    bytes32 constant private REDEMPTIONS_APP_ID = keccak256(abi.encodePacked(apmNamehash("1hive"), keccak256("redemptions")));
-    bytes32 constant private TIME_LOCK_APP_ID = keccak256(abi.encodePacked(apmNamehash("1hive"), keccak256("time-lock")));
-    bytes32 constant private TOKEN_REQUEST_APP_ID = keccak256(abi.encodePacked(apmNamehash("1hive"), keccak256("token-request")));
-    bytes32 constant private TOKEN_BALANCE_ORACLE_APP_ID = keccak256(abi.encodePacked(apmNamehash("1hive"), keccak256("token-balance-oracle")));
+    bytes32 constant private DANDELION_VOTING_APP_ID = apmNamehash("dandelion-voting");
+    bytes32 constant private REDEMPTIONS_APP_ID = apmNamehash("redemptions");
+    bytes32 constant private TIME_LOCK_APP_ID = apmNamehash("time-lock");
+    bytes32 constant private TOKEN_REQUEST_APP_ID = apmNamehash("token-request");
+    bytes32 constant private TOKEN_BALANCE_ORACLE_APP_ID = apmNamehash("token-balance-oracle");
 
     address constant ANY_ENTITY = address(-1);
     uint8 constant ORACLE_PARAM_ID = 203;
@@ -69,7 +63,6 @@ contract DandelionOrg is BaseTemplate {
     * @param _tokenSymbol String with the symbol for the token used by share holders in the organization
     * @param _holders Array of token holder addresses
     * @param _stakes Array of token stakes for holders (token has 18 decimals, multiply token amount `* 10^18`)
-    * @param _financePeriod uint64 period of finance budget 
     * @param _useAgentAsVault Boolean to tell whether to use an Agent app as a more advanced form of Vault app
     */
     function newTokenAndBaseInstance(
