@@ -45,7 +45,7 @@ module.exports = async (
     const dandelionOrgAdress = process.argv[4]
     const dandelionOrg = await DandelionOrg.at(dandelionOrgAdress)
 
-    // General time units 
+    // General time units
     const ONE_HOUR = 60 * 60
     const ONE_WEEK = ONE_HOUR * 24 * 7;
     const ONE_HOUR_BLOCKS = Math.round(ONE_HOUR / 15)
@@ -87,7 +87,7 @@ module.exports = async (
     console.log(`Lock Token address: ${timeLockToken.address}`)
 
     console.log("Creating base apps...")
-    const baseAppsReceipt = await dandelionOrg.newTokenAndBaseInstance("TEST", "TST", [owner], [new BN('1000000000000000000')], new BN("50000000000000000"), true)
+    const baseAppsReceipt = await dandelionOrg.newTokenAndBaseInstance("TEST", "TST", [owner], [new BN('1000000000000000000')], 0, true)
 
     const tokenAddress = baseAppsReceipt.logs.find(x => x.event === "DeployToken").args.token
     console.log(`Membership Token address: ${tokenAddress}`)
