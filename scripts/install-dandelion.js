@@ -87,7 +87,7 @@ module.exports = async (
     console.log(`Lock Token address: ${timeLockToken.address}`)
 
     console.log("Creating base apps...")
-    const baseAppsReceipt = await dandelionOrg.newTokenAndBaseInstance("TEST", "TST", [owner], [new BN('1000000000000000000')], new BN("50000000000000000"), true)
+    const baseAppsReceipt = await dandelionOrg.newTokenAndBaseInstance("TEST", "TST", [owner], [new BN('1000000000000000000')], 2628000000, true)
 
     const tokenAddress = baseAppsReceipt.logs.find(x => x.event === "DeployToken").args.token
     console.log(`Membership Token address: ${tokenAddress}`)
