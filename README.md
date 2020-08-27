@@ -55,6 +55,22 @@ The dandelion organization template consists of the Agent (optional), Finance, a
 | Agent | RUN_SCRIPT | Dandelion Voting | Dandelion Voting |
 | Agent | EXECUTE    | Dandelion Voting | Dandelion Voting |
 
+
+
+## Testing
+
+- On a separate terminal, run the aragon devchain
+```
+aragon devchain --network-id 15
+```
+
+- Run tests
+```
+npm run test
+```
+
+| Note that you will need to have all dandelion apps installed on the devchain before running tests.
+
 ## Contributing
 
 We welcome community contributions!
@@ -62,3 +78,4 @@ We welcome community contributions!
 Please check out our [open Issues](https://github.com/1Hive/dandelion-org/issues) to get started.
 
 If you discover something that could potentially impact security, please notify us immediately. The quickest way to reach us is via the #dev channel in our [team Keybase chat](https://keybase.io/team/1hive). Just say hi and that you discovered a potential security vulnerability and we'll DM you to discuss details.
+
