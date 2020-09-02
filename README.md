@@ -69,7 +69,7 @@ aragon devchain --network-id 15
 npm run test
 ```
 
-| Note that you will need to have all dandelion apps installed on the devchain before running tests.
+| Note that you will need to have all dandelion apps published to the devchain before running tests.
 
 ## Contributing
 
